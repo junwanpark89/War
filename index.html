@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우리들의 초대박 체스 게임</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #2f3542;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        /* 8x8 체스판 스타일 */
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 70px);
+            grid-template-rows: repeat(8, 70px);
+            border: 4px solid #1e222b;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* 칸(셀) 기본 스타일 */
+        .cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            user-select: none;
+        }
+
+        /* 흰색 칸 */
+        .white {
+            background-color: #f0d9b5;
+        }
+
+        /* 검은색(갈색) 칸 */
+        .black {
+            background-color: #b58863;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 체스판이 들어갈 자리 -->
+    <div class="chessboard" id="board"></div>
+
+    <script>
+        const board = document.getElementById('board');
+
+        // 8x8 총 64개의 칸을 반복문으로 자동 생성
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const cell = document.createElement('div');
+                
+                // 짝수/홀수 계산해서 흰칸, 검은칸 번갈아가며 배치
+                if ((row + col) % 2 === 0) {
+                    cell.className = 'cell white';
+                } else {
+                    cell.className = 'cell black';
+                }
+
+                // 나중에 좌표 확인하기 편하게 데이터 심어두기 (예: row-0-col-0)
+                cell.dataset.row = row;
+                cell.dataset.col = col;
+
+                board.appendChild(cell);
+            }
+        }
+    </script>
+</body>
+</html>
