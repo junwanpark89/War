@@ -209,7 +209,7 @@
         }
 
         function handleCellClick(row, col) {
-            // [1] 드래프트 배치 단계 코드
+            // 드래프트 배치 단계 코드
             if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
                 if ((row === 6 || row === 7) && !boardState[row][col]) {
                     boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
@@ -236,13 +236,13 @@
                     }
                 }
             } 
-            // [2] 실제 인게임 전투 단계 코드
+            // 실제 인게임 전투 단계 코드
             else if (gameState === "GAMEPLAY") {
                 if (turn !== "player") return; // 내 턴이 아니면 클릭 거부
 
                 const clickedCellData = boardState[row][col];
 
-                // 이미 내 기물을 골라둔 상태에서 유효한 이동 경로(주황색 칸)를 클릭했을 때 -> 기물 이동 및 공격
+                // 이미 내 기물을 고라둔 상태에서 유효한 이동 경로(주황색 칸)를 클릭했을 때 -> 기물 이동 및 공격
                 if (selectedCell && validMoves.some(m => m.r === row && m.c === col)) {
                     const from = selectedCell;
                     
@@ -339,7 +339,7 @@
                 }
             });
 
-            // 변칙 점프 기물 행마법 추가 (2, 3티어 및 엘프 종족의 나이트 형태 변칙 점프 보완)
+            // 오타 수정 완료: off.col -> off.c 로 변경하여 컴퓨터 AI 연산 에러 해결
             if (tier <= 3) {
                 const knightOffsets = [
                     {r:-2, c:-1}, {r:-2, c:1}, {r:-1, c:-2}, {r:-1, c:2},
@@ -347,7 +347,7 @@
                 ];
                 knightOffsets.forEach(off => {
                     const nr = row + off.r;
-                    const nc = col + off.col;
+                    const nc = col + off.c;
                     if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                         const target = boardState[nr][nc];
                         if (!target || target.side !== side) {
@@ -377,7 +377,7 @@
                             let score = 1;
                             const target = boardState[m.r][m.c];
                             if (target && target.side === 'player') {
-                                score = 10 + target.tier; // 낮은 티어(약한) 유저 기물 타격 우선순위
+                                score = 10 + (6 - target.tier); // 낮은 티어 숫자(=강한 기물) 타격 우선순위
                             }
                             allEnemyMoves.push({ from: {r, c}, to: m, score: score });
                         });
