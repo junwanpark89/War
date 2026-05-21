@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
+
     <style>
         body {
             display: flex;
@@ -48,7 +49,10 @@
             font-weight: bold;
             transition: 0.2s;
         }
-        .choice-btn:hover { background-color: #ff6b81; }
+
+        .choice-btn:hover {
+            background-color: #ff6b81;
+        }
 
         .chessboard {
             display: grid;
@@ -72,21 +76,21 @@
             box-shadow: inset 0 0 15px #2ed573;
             background-color: #2ed57344 !important;
         }
-        
+
         .cell.move-valid {
             box-shadow: inset 0 0 15px #ffa500;
             background-color: #ffa50044 !important;
         }
-        
+
         .cell.enemy-move-valid {
             box-shadow: inset 0 0 15px #ff4757;
             background-color: #ff475744 !important;
         }
-        
+
         .cell.selected {
             background-color: #70a1ff !important;
         }
-        
+
         .cell.enemy-selected {
             background-color: #ff475777 !important;
         }
@@ -102,22 +106,124 @@
             align-items: center;
             z-index: 2;
         }
-        .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
-        .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
+
+        .player-p {
+            color: #ffffff;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+        }
+
+        .player-e {
+            color: #1e1e1e;
+            text-shadow: 0 2px 5px rgba(255,255,255,0.4);
+        }
+
+        /* HELP BUTTON */
+
+        .help-box {
+            margin-top: 20px;
+            padding: 12px 20px;
+            background-color: #1e222b;
+            border: 2px solid #57606f;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+            user-select: none;
+        }
+
+        .help-box:hover {
+            background-color: #2f3542;
+            border-color: #70a1ff;
+        }
+
+        .help-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 420px;
+            max-width: 90%;
+            background: #1e222b;
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 0 25px rgba(0,0,0,0.7);
+            z-index: 999;
+            line-height: 1.6;
+        }
+
+        .help-popup h2 {
+            margin-top: 0;
+            color: #70a1ff;
+        }
+
+        .close-help {
+            margin-top: 15px;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #ff4757;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .close-help:hover {
+            background: #ff6b81;
+        }
     </style>
 </head>
+
 <body>
 
     <div id="status-panel">
-        <div id="status-text">To start the game, choose your faction!</div>
+        <div id="status-text">
+            To start the game, choose your faction!
+        </div>
+
         <div id="button-zone" class="btn-container">
-            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
-            <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
-            <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
+            <button class="choice-btn" onclick="selectRace('Dragon')">
+                🐉 Dragon
+            </button>
+
+            <button class="choice-btn" onclick="selectRace('Elf')">
+                🧝 Elf
+            </button>
+
+            <button class="choice-btn" onclick="selectRace('Human')">
+                👱 Human
+            </button>
         </div>
     </div>
 
     <div class="chessboard" id="board"></div>
+
+    <!-- HELP BUTTON -->
+    <div class="help-box" onclick="openHelp()">
+        📖 How to Play
+    </div>
+
+    <!-- HELP POPUP -->
+    <div class="help-popup" id="helpPopup">
+        <h2>How to Play</h2>
+
+        <p>
+            1️⃣ Choose your faction.<br><br>
+
+            2️⃣ Place your units on the bottom 2 rows.<br><br>
+
+            3️⃣ Higher tier units can move farther.<br><br>
+
+            4️⃣ Tier 1~3 units also move like knights.<br><br>
+
+            5️⃣ Defeat all enemy units to win.
+        </p>
+
+        <button class="close-help" onclick="closeHelp()">
+            Close
+        </button>
+    </div>
 
     <script>
         const board = document.getElementById('board');
@@ -133,6 +239,7 @@
                 2: [{name:"Flame Lord", emoji:"🔥"}, {name:"Storm Drake", emoji:"⚡"}, {name:"Gargoyle Elder", emoji:"🌪️"}],
                 1: [{name:"Ruination Dragon", emoji:"🌋"}, {name:"Ancient Drake", emoji:"🐉"}, {name:"Abyss Dragon", emoji:"🌌"}]
             },
+
             Elf: {
                 6: [{name:"Spirit Butterfly", emoji:"🦋"}, {name:"Elf Militia", emoji:"🏹"}, {name:"Pixie", emoji:"✨"}],
                 5: [{name:"Druid", emoji:"🌿"}, {name:"Elf Swordsman", emoji:"⚔️"}, {name:"Treant", emoji:"🪵"}],
@@ -141,6 +248,7 @@
                 2: [{name:"Moonbow Archer", emoji:"🏹"}, {name:"Gryphon Knight", emoji:"🦅"}, {name:"Unicorn Guardian", emoji:"🦄"}],
                 1: [{name:"Elf Queen", emoji:"🧝‍♀️"}, {name:"Worldtree Keeper", emoji:"🌳"}, {name:"Elemental King", emoji:"🧚‍♂️"}]
             },
+
             Human: {
                 6: [{name:"Footman", emoji:"💂"}, {name:"Peasant", emoji:"🧑‍🌾"}, {name:"Recruit", emoji:"🎖️"}],
                 5: [{name:"Apprentice Mage", emoji:"🌟"}, {name:"Spearman", emoji:"🔱"}, {name:"Spy", emoji:"🕵️‍♂️"}],
@@ -151,25 +259,38 @@
             }
         };
 
-        let gameState = "CHOOSE_RACE"; 
-        let playerRace = "", enemyRace = "";
-        let currentDraftTier = 6; 
-        let playerSelectedPiece = null, enemySelectedPiece = null;
+        let gameState = "CHOOSE_RACE";
+        let playerRace = "";
+        let enemyRace = "";
+        let currentDraftTier = 6;
+
+        let playerSelectedPiece = null;
+        let enemySelectedPiece = null;
+
         let remainingPlacements = 0;
-        let turn = "player"; 
+        let turn = "player";
 
         let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
-        let selectedCell = null; 
-        let validMoves = [];     
+
+        let selectedCell = null;
+        let validMoves = [];
 
         function createBoard() {
             board.innerHTML = "";
+
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
+
                     const cell = document.createElement('div');
-                    cell.className = `cell ${(row + col) % 2 === 0 ? 'white' : 'black'}`;
-                    cell.dataset.row = row; cell.dataset.col = col;
+
+                    cell.className =
+                        `cell ${(row + col) % 2 === 0 ? 'white' : 'black'}`;
+
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+
                     cell.addEventListener('click', () => handleCellClick(row, col));
+
                     board.appendChild(cell);
                 }
             }
@@ -177,203 +298,373 @@
 
         function selectRace(race) {
             playerRace = race;
+
             const races = ['Dragon', 'Elf', 'Human'];
-            enemyRace = races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
+
+            enemyRace =
+                races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
+
             gameState = "DRAFT_LOOP";
+
             startTierDraft();
         }
 
         function startTierDraft() {
-            let totalToPlace = 1;
-            if (currentDraftTier === 6) totalToPlace = 8;
-            else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) totalToPlace = 2;
 
-            statusText.innerHTML = `[You: ${playerRace} vs Enemy: ${enemyRace}]<br>Choose a Tier ${currentDraftTier} piece. (Deploy ${totalToPlace} copies)`;
+            let totalToPlace = 1;
+
+            if (currentDraftTier === 6) totalToPlace = 8;
+            else if (
+                currentDraftTier === 5 ||
+                currentDraftTier === 4 ||
+                currentDraftTier === 3
+            ) totalToPlace = 2;
+
+            statusText.innerHTML =
+                `[You: ${playerRace} vs Enemy: ${enemyRace}]<br>
+                Choose a Tier ${currentDraftTier} piece.
+                (Deploy ${totalToPlace} copies)`;
+
             buttonZone.innerHTML = "";
 
             PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
+
                 const btn = document.createElement('button');
+
                 btn.className = "choice-btn";
+
                 btn.innerHTML = `${piece.emoji} ${piece.name}`;
+
                 btn.onclick = () => chooseDraftPiece(piece);
+
                 buttonZone.appendChild(btn);
             });
         }
 
         function chooseDraftPiece(piece) {
-            playerSelectedPiece = { ...piece, tier: currentDraftTier };
-            
+
+            playerSelectedPiece = {
+                ...piece,
+                tier: currentDraftTier
+            };
+
             if (currentDraftTier === 6) {
                 remainingPlacements = 8;
-            } else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) {
-                remainingPlacements = 2; 
-            } else {
+            }
+            else if (
+                currentDraftTier === 5 ||
+                currentDraftTier === 4 ||
+                currentDraftTier === 3
+            ) {
+                remainingPlacements = 2;
+            }
+            else {
                 remainingPlacements = 1;
             }
 
             buttonZone.innerHTML = "";
-            statusText.innerHTML = `Deploy ${piece.emoji} onto your territory (bottom 2 rows). (Remaining: ${remainingPlacements})`;
 
-            const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
-            enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
+            statusText.innerHTML =
+                `Deploy ${piece.emoji}
+                onto your territory
+                (bottom 2 rows).
+                (Remaining: ${remainingPlacements})`;
+
+            const enemyChoices =
+                PIECE_DATABASE[enemyRace][currentDraftTier];
+
+            enemySelectedPiece = {
+                ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)],
+                tier: currentDraftTier
+            };
 
             highlightDraftZone(true);
         }
 
         function highlightDraftZone(on) {
+
             document.querySelectorAll('.cell').forEach(cell => {
+
                 const r = parseInt(cell.dataset.row);
-                if (on && (r === 6 || r === 7)) cell.classList.add('highlight');
-                else cell.classList.remove('highlight');
+
+                if (on && (r === 6 || r === 7)) {
+                    cell.classList.add('highlight');
+                }
+                else {
+                    cell.classList.remove('highlight');
+                }
             });
         }
 
         function handleCellClick(row, col) {
+
             if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
-                if ((row === 6 || row === 7) && !boardState[row][col]) {
-                    boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
+
+                if (
+                    (row === 6 || row === 7) &&
+                    !boardState[row][col]
+                ) {
+
+                    boardState[row][col] = {
+                        ...playerSelectedPiece,
+                        side: 'player'
+                    };
+
                     renderPieces();
+
                     remainingPlacements--;
 
-                    aiPlaceEnemyPiece(); 
+                    aiPlaceEnemyPiece();
 
                     if (remainingPlacements > 0) {
-                        statusText.innerHTML = `Deploy the remaining copies of ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
+
+                        statusText.innerHTML =
+                            `Deploy the remaining copies of
+                            ${playerSelectedPiece.emoji}.
+                            (Remaining: ${remainingPlacements})`;
+
                     } else {
+
                         highlightDraftZone(false);
+
                         playerSelectedPiece = null;
-                        
+
                         if (currentDraftTier > 1) {
-                            currentDraftTier--; 
+
+                            currentDraftTier--;
+
                             startTierDraft();
+
                         } else {
+
                             gameState = "GAMEPLAY";
+
                             turn = "player";
-                            statusText.innerHTML = "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
+
+                            statusText.innerHTML =
+                                "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
                         }
                     }
                 }
-            } 
+            }
+
             else if (gameState === "GAMEPLAY") {
-                if (turn !== "player") return; 
+
+                if (turn !== "player") return;
 
                 const clickedCellData = boardState[row][col];
-                const activePiece = selectedCell ? boardState[selectedCell.r][selectedCell.c] : null;
 
-                if (activePiece && activePiece.side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
+                const activePiece =
+                    selectedCell
+                    ? boardState[selectedCell.r][selectedCell.c]
+                    : null;
+
+                if (
+                    activePiece &&
+                    activePiece.side === 'player' &&
+                    validMoves.some(m => m.r === row && m.c === col)
+                ) {
+
                     const from = selectedCell;
-                    
-                    boardState[row][col] = boardState[from.r][from.c];
+
+                    boardState[row][col] =
+                        boardState[from.r][from.c];
+
                     boardState[from.r][from.c] = null;
-                    
+
                     clearHighlights();
+
                     selectedCell = null;
+
                     renderPieces();
 
                     if (checkGameOver()) return;
 
                     turn = "enemy";
-                    statusText.innerHTML = "🤖 Computer is thinking...";
+
+                    statusText.innerHTML =
+                        "🤖 Computer is thinking...";
+
                     setTimeout(enemyTurn, 1000);
-                    return; 
-                } 
+
+                    return;
+                }
 
                 if (clickedCellData) {
+
                     if (clickedCellData.side === 'player') {
+
                         clearHighlights();
+
                         selectedCell = { r: row, c: col };
-                        document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('selected');
-                        
-                        validMoves = calculateMoves(row, col, clickedCellData);
+
+                        document.querySelector(
+                            `[data-row='${row}'][data-col='${col}']`
+                        ).classList.add('selected');
+
+                        validMoves =
+                            calculateMoves(row, col, clickedCellData);
+
                         validMoves.forEach(m => {
-                            document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
-                        });
-                    } 
-                    else if (clickedCellData.side === 'enemy') {
-                        clearHighlights();
-                        selectedCell = { r: row, c: col }; 
-                        document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
-                        
-                        validMoves = calculateMoves(row, col, clickedCellData);
-                        validMoves.forEach(m => {
-                            document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid');
+
+                            document.querySelector(
+                                `[data-row='${m.r}'][data-col='${m.c}']`
+                            ).classList.add('move-valid');
                         });
                     }
+
+                    else if (clickedCellData.side === 'enemy') {
+
+                        clearHighlights();
+
+                        selectedCell = { r: row, c: col };
+
+                        document.querySelector(
+                            `[data-row='${row}'][data-col='${col}']`
+                        ).classList.add('enemy-selected');
+
+                        validMoves =
+                            calculateMoves(row, col, clickedCellData);
+
+                        validMoves.forEach(m => {
+
+                            document.querySelector(
+                                `[data-row='${m.r}'][data-col='${m.c}']`
+                            ).classList.add('enemy-move-valid');
+                        });
+                    }
+
                 } else {
+
                     clearHighlights();
+
                     selectedCell = null;
                 }
             }
         }
 
         function aiPlaceEnemyPiece() {
+
             let emptySpots = [];
+
             for (let r = 0; r <= 1; r++) {
                 for (let c = 0; c < 8; c++) {
-                    if (!boardState[r][c]) emptySpots.push({r, c});
+
+                    if (!boardState[r][c]) {
+                        emptySpots.push({r, c});
+                    }
                 }
             }
+
             if (emptySpots.length > 0) {
-                const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-                boardState[spot.r][spot.c] = { ...enemySelectedPiece, side: 'enemy' };
+
+                const spot =
+                    emptySpots[Math.floor(Math.random() * emptySpots.length)];
+
+                boardState[spot.r][spot.c] = {
+                    ...enemySelectedPiece,
+                    side: 'enemy'
+                };
+
                 renderPieces();
             }
         }
 
         function clearHighlights() {
+
             document.querySelectorAll('.cell').forEach(c => {
-                c.classList.remove('selected', 'enemy-selected', 'move-valid', 'enemy-move-valid');
+
+                c.classList.remove(
+                    'selected',
+                    'enemy-selected',
+                    'move-valid',
+                    'enemy-move-valid'
+                );
             });
         }
 
         function calculateMoves(row, col, piece) {
+
             const moves = [];
+
             const side = piece.side;
             const tier = piece.tier;
 
             const directions = [
-                {r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}, 
-                {r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1}  
+                {r:-1,c:0},
+                {r:1,c:0},
+                {r:0,c:-1},
+                {r:0,c:1},
+                {r:-1,c:-1},
+                {r:-1,c:1},
+                {r:1,c:-1},
+                {r:1,c:1}
             ];
 
             let maxRange = 1;
+
             if (tier === 5) maxRange = 2;
             if (tier === 4) maxRange = 3;
             if (tier === 3) maxRange = 4;
             if (tier === 2) maxRange = 5;
-            if (tier === 1) maxRange = 8; 
+            if (tier === 1) maxRange = 8;
 
             directions.forEach(dir => {
+
                 for (let i = 1; i <= maxRange; i++) {
+
                     const nr = row + dir.r * i;
                     const nc = col + dir.c * i;
 
-                    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break; 
+                    if (
+                        nr < 0 || nr >= 8 ||
+                        nc < 0 || nc >= 8
+                    ) break;
 
                     const target = boardState[nr][nc];
+
                     if (!target) {
+
                         moves.push({ r: nr, c: nc });
+
                     } else {
+
                         if (target.side !== side) {
                             moves.push({ r: nr, c: nc });
                         }
-                        break; 
+
+                        break;
                     }
                 }
             });
 
             if (tier <= 3) {
+
                 const knightOffsets = [
-                    {r:-2, c:-1}, {r:-2, c:1}, {r:-1, c:-2}, {r:-1, c:2},
-                    {r:1, c:-2}, {r:1, c:2}, {r:2, c:-1}, {r:2, c:1}
+                    {r:-2,c:-1},
+                    {r:-2,c:1},
+                    {r:-1,c:-2},
+                    {r:-1,c:2},
+                    {r:1,c:-2},
+                    {r:1,c:2},
+                    {r:2,c:-1},
+                    {r:2,c:1}
                 ];
+
                 knightOffsets.forEach(off => {
+
                     const nr = row + off.r;
                     const nc = col + off.c;
-                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+
+                    if (
+                        nr >= 0 && nr < 8 &&
+                        nc >= 0 && nc < 8
+                    ) {
+
                         const target = boardState[nr][nc];
+
                         if (!target || target.side !== side) {
-                            moves.push({r: nr, c: nc});
+                            moves.push({r:nr, c:nc});
                         }
                     }
                 });
@@ -383,35 +674,53 @@
         }
 
         function enemyTurn() {
+
             if (gameState !== "GAMEPLAY") return;
 
             let allEnemyMoves = [];
 
             for (let r = 0; r < 8; r++) {
+
                 for (let c = 0; c < 8; c++) {
+
                     const piece = boardState[r][c];
+
                     if (piece && piece.side === 'enemy') {
+
                         const moves = calculateMoves(r, c, piece);
+
                         moves.forEach(m => {
+
                             let score = 1;
+
                             const target = boardState[m.r][m.c];
+
                             if (target && target.side === 'player') {
-                                score = 10 + (6 - target.tier); 
+                                score = 10 + (6 - target.tier);
                             }
-                            allEnemyMoves.push({ from: {r, c}, to: m, score: score });
+
+                            allEnemyMoves.push({
+                                from: {r, c},
+                                to: m,
+                                score: score
+                            });
                         });
                     }
                 }
             }
 
             if (allEnemyMoves.length > 0) {
-                allEnemyMoves.sort((a, b) => b.score - a.score);
+
+                allEnemyMoves.sort((a,b) => b.score - a.score);
+
                 const bestMove = allEnemyMoves[0];
 
                 const from = bestMove.from;
                 const to = bestMove.to;
 
-                boardState[to.r][to.c] = boardState[from.r][from.c];
+                boardState[to.r][to.c] =
+                    boardState[from.r][from.c];
+
                 boardState[from.r][from.c] = null;
 
                 renderPieces();
@@ -419,47 +728,96 @@
                 if (checkGameOver()) return;
 
                 turn = "player";
-                statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+
+                statusText.innerHTML =
+                    "⚔️ Your Turn! Select a piece to move.";
+
             } else {
+
                 endGame("Player Wins!");
             }
         }
 
         function checkGameOver() {
+
             let playerAlive = false;
             let enemyAlive = false;
 
             for (let r = 0; r < 8; r++) {
+
                 for (let c = 0; c < 8; c++) {
+
                     if (boardState[r][c]) {
-                        if (boardState[r][c].side === 'player') playerAlive = true;
-                        if (boardState[r][c].side === 'enemy') enemyAlive = true;
+
+                        if (boardState[r][c].side === 'player') {
+                            playerAlive = true;
+                        }
+
+                        if (boardState[r][c].side === 'enemy') {
+                            enemyAlive = true;
+                        }
                     }
                 }
             }
 
-            if (!playerAlive) { endGame("Computer Wins! You lose."); return true; }
-            if (!enemyAlive) { endGame("Victory is yours!"); return true; }
+            if (!playerAlive) {
+                endGame("Computer Wins! You lose.");
+                return true;
+            }
+
+            if (!enemyAlive) {
+                endGame("Victory is yours!");
+                return true;
+            }
+
             return false;
         }
 
         function endGame(message) {
+
             gameState = "GAME_OVER";
-            statusText.innerHTML = `🏆 Game Over: ${message}`;
-            buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Restart Game</button>`;
+
+            statusText.innerHTML =
+                `🏆 Game Over: ${message}`;
+
+            buttonZone.innerHTML =
+                `<button class="choice-btn"
+                onclick="location.reload()">
+                Restart Game
+                </button>`;
         }
 
         function renderPieces() {
-            document.querySelectorAll('.piece').forEach(p => p.remove());
+
+            document.querySelectorAll('.piece')
+                .forEach(p => p.remove());
+
             for (let r = 0; r < 8; r++) {
+
                 for (let c = 0; c < 8; c++) {
+
                     const data = boardState[r][c];
+
                     if (data) {
-                        const cell = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
+
+                        const cell = document.querySelector(
+                            `[data-row='${r}'][data-col='${c}']`
+                        );
+
                         if (cell) {
-                            const pieceEl = document.createElement('div');
-                            pieceEl.className = `piece ${data.side === 'player' ? 'player-p' : 'player-e'}`;
+
+                            const pieceEl =
+                                document.createElement('div');
+
+                            pieceEl.className =
+                                `piece ${
+                                    data.side === 'player'
+                                    ? 'player-p'
+                                    : 'player-e'
+                                }`;
+
                             pieceEl.textContent = data.emoji;
+
                             cell.appendChild(pieceEl);
                         }
                     }
@@ -467,7 +825,18 @@
             }
         }
 
+        /* HELP POPUP FUNCTIONS */
+
+        function openHelp() {
+            document.getElementById("helpPopup").style.display = "block";
+        }
+
+        function closeHelp() {
+            document.getElementById("helpPopup").style.display = "none";
+        }
+
         createBoard();
     </script>
+
 </body>
 </html>
