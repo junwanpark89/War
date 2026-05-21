@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate 3-Faction Strategy Board Game - AI Battle</title>
+    <title>Faction Wars: Strategy Board Game</title>
     <style>
         body {
             display: flex;
@@ -406,7 +406,7 @@
 
             if (allEnemyMoves.length > 0) {
                 allEnemyMoves.sort((a, b) => b.score - a.score);
-                const bestMove = allEnemyMoves;
+                const bestMove = allEnemyMoves[0];
 
                 const from = bestMove.from;
                 const to = bestMove.to;
@@ -438,8 +438,8 @@
                 }
             }
 
-            if (!playerAlive) { endGame("💀 Computer Wins! You lose."); return true; }
-            if (!enemyAlive) { endGame("🎉 Shadows Defeated! Victory is yours!"); return true; }
+            if (!playerAlive) { endGame("Computer Wins! You lose."); return true; }
+            if (!enemyAlive) { endGame("Victory is yours!"); return true; }
             return false;
         }
 
