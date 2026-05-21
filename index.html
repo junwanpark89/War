@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>초대박 3종족 전략 보드게임 - 위험 범위 표시 버전</title>
+    <title>초대박 3종족 전략 보드게임 - 위험 범위 완벽 수정</title>
     <style>
         body {
             display: flex;
@@ -82,7 +82,7 @@
             box-shadow: inset 0 0 15px #ff4757;
             background-color: #ff475744 !important;
         }
-        /* 내가 선택한 기물 강조 (파란색) */
+        /* 내가 선택한 내 기물 강조 (파란색) */
         .cell.selected {
             background-color: #70a1ff !important;
         }
@@ -258,9 +258,10 @@
                 if (turn !== "player") return; 
 
                 const clickedCellData = boardState[row][col];
+                const activePiece = selectedCell ? boardState[selectedCell.r][selectedCell.c] : null;
 
-                // 1. 이미 내 기물을 골라둔 상태에서 주황색 이동 가능 칸을 눌렀을 때 -> 기물 이동
-                if (selectedCell && boardState[selectedCell.r][selectedCell.c] && boardState[selectedCell.r][selectedCell.c].side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
+                // [버그 수정 완료] 내 기물을 선택한 상태이고, 클릭한 대상이 이동 경로(주황색) 안에 있을 때만 공격/이동 실행
+                if (activePiece && activePiece.side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
                     const from = selectedCell;
                     
                     boardState[row][col] = boardState[from.r][from.c];
@@ -275,31 +276,35 @@
                     turn = "enemy";
                     statusText.innerHTML = "🤖 컴퓨터가 생각 중입니다...";
                     setTimeout(enemyTurn, 1000);
+                    return; // 이동 처리 후 즉시 조기 리턴으로 아래 상대 클릭 로직 중복 방지
                 } 
-                // 2. 내 기물을 클릭했을 때 (주황색 경로 표시)
-                else if (clickedCellData && clickedCellData.side === 'player') {
-                    clearHighlights();
-                    selectedCell = { r: row, c: col };
-                    document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('selected');
-                    
-                    validMoves = calculateMoves(row, col, clickedCellData);
-                    validMoves.forEach(m => {
-                        document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
-                    });
-                } 
-                // 3. [추가] 상대방 기물을 클릭했을 때 (빨간색 경로 표시 - 위험 범위 확인용)
-                else if (clickedCellData && clickedCellData.side === 'enemy') {
-                    clearHighlights();
-                    selectedCell = { r: row, c: col };
-                    document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
-                    
-                    validMoves = calculateMoves(row, col, clickedCellData);
-                    validMoves.forEach(m => {
-                        document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid');
-                    });
-                } 
-                // 4. 빈 곳이나 의미 없는 칸 클릭 시 강조 해제
-                else {
+
+                // 위의 공격/이동 상황이 아니라면 순수한 기물 선택 모드로 진입
+                if (clickedCellData) {
+                    // 내 기물을 선택했을 때 (주황색 이동선 표시)
+                    if (clickedCellData.side === 'player') {
+                        clearHighlights();
+                        selectedCell = { r: row, c: col };
+                        document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('selected');
+                        
+                        validMoves = calculateMoves(row, col, clickedCellData);
+                        validMoves.forEach(m => {
+                            document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
+                        });
+                    } 
+                    // 상대방 기물을 클릭했을 때 (빨간색 위험선 표시)
+                    else if (clickedCellData.side === 'enemy') {
+                        clearHighlights();
+                        selectedCell = { r: row, c: col }; // 위험 반경 조회를 위해 잠시 포커스 이동
+                        document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
+                        
+                        validMoves = calculateMoves(row, col, clickedCellData);
+                        validMoves.forEach(m => {
+                            document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid');
+                        });
+                    }
+                } else {
+                    // 빈 땅을 누르면 포커싱 및 모든 표시선 해제
                     clearHighlights();
                     selectedCell = null;
                 }
