@@ -458,4 +458,16 @@
                         const cell = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
                         if (cell) {
                             const pieceEl = document.createElement('div');
-      
+                            pieceEl.className = `piece ${data.side === 'player' ? 'player-p' : 'player-e'}`;
+                            pieceEl.textContent = data.emoji;
+                            cell.appendChild(pieceEl);
+                        }
+                    }
+                }
+            }
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
