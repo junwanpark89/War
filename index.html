@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>초대박 3종족 전략 보드게임 - 규칙 수정 버전</title>
+    <title>초대박 3종족 전략 보드게임 - 규칙 수정 버전 2</title>
     <style>
         body {
             display: flex;
@@ -173,12 +173,11 @@
         }
 
         function startTierDraft() {
-            // 새 규칙에 맞춰 메시지에 표시할 총 배치 개수 연산
             let totalToPlace = 1;
             if (currentDraftTier === 6) totalToPlace = 8;
             else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) totalToPlace = 2;
 
-            statusText.innerHTML = `[나: ${playerRace} vs 적: ${enemyRace}]<br>${currentDraftTier}티어 기물을 선택하세요. (총 ${totalToPlace}개 배치)`;
+            statusText.innerHTML = `[나: ${playerRace} vs 적: ${enemyRace}]<br>${currentDraftTier}티어 기물을 선택하세요. (선택한 기물을 총 ${totalToPlace}개 배치합니다)`;
             buttonZone.innerHTML = "";
 
             PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
@@ -193,11 +192,11 @@
         function chooseDraftPiece(piece) {
             playerSelectedPiece = { ...piece, tier: currentDraftTier };
             
-            // [수정 규칙 반영] 티어별 배치해야 하는 총 개수 지정
+            // 티어별 배치해야 하는 총 개수 지정
             if (currentDraftTier === 6) {
                 remainingPlacements = 8;
             } else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) {
-                remainingPlacements = 2;
+                remainingPlacements = 2; // 똑같은 기물로 2개 배치하도록 개수 고정
             } else {
                 remainingPlacements = 1;
             }
@@ -205,6 +204,7 @@
             buttonZone.innerHTML = "";
             statusText.innerHTML = `내 진영(아래 2줄)에 ${piece.emoji}를 배치하세요. (남은 개수: ${remainingPlacements}개)`;
 
+            // 컴퓨터 AI도 이번 티어에서 쓸 똑같은 기물 1종류를 미리 확정해둡니다.
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
             enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
 
@@ -222,15 +222,18 @@
         function handleCellClick(row, col) {
             if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
                 if ((row === 6 || row === 7) && !boardState[row][col]) {
+                    // 유저가 선택한 바로 '그 똑같은 기물'을 보드에 배치
                     boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
                     renderPieces();
                     remainingPlacements--;
 
+                    // 내가 하나 놓을 때, 컴퓨터도 미리 골라둔 '그 똑같은 기물'을 위 진영에 실시간 배치
                     aiPlaceEnemyPiece(); 
 
                     if (remainingPlacements > 0) {
-                        statusText.innerHTML = `기물을 마저 배치하세요. (남은 개수: ${remainingPlacements}개)`;
+                        statusText.innerHTML = `동일한 기물(${playerSelectedPiece.emoji})을 마저 배치하세요. (남은 개수: ${remainingPlacements}개)`;
                     } else {
+                        // 선택한 기물의 지정된 개수(8개 또는 2개)를 다 놓았을 때만 다음 티어로 이동
                         highlightDraftZone(false);
                         playerSelectedPiece = null;
                         
