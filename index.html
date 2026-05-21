@@ -1,472 +1,643 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Faction Wars - AI Battle</title>
+    <title>Ultimate Faction Wars - Auto Battler Style</title>
     <style>
         body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e24;
+            color: #f5f5f5;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            background-color: #2f3542;
+            padding: 20px;
             margin: 0;
-            font-family: Arial, sans-serif;
-            color: white;
         }
 
-        #status-panel {
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: bold;
-            background: #1e222b;
-            padding: 15px 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            text-align: center;
-            max-width: 600px;
+        h1 {
+            color: #ffd700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px #000;
         }
 
-        .btn-container {
+        #game-container {
             display: flex;
-            flex-wrap: wrap;
+            gap: 30px;
+            max-width: 1200px;
+            width: 100%;
             justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
         }
 
-        .choice-btn {
-            padding: 10px 15px;
-            font-size: 14px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            background-color: #ff4757;
-            color: white;
+        #left-panel, #right-panel {
+            background-color: #2a2a35;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+        }
+
+        #left-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 300px;
+        }
+
+        #status-area {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
             font-weight: bold;
-            transition: 0.2s;
+            color: #a0a0ff;
+            text-align: center;
+            background: #15151c;
+            padding: 10px 20px;
+            border-radius: 8px;
+            width: 90%;
         }
-        .choice-btn:hover { background-color: #ff6b81; }
 
-        .chessboard {
+        #board {
             display: grid;
-            grid-template-columns: repeat(8, 70px);
-            grid-template-rows: repeat(8, 70px);
-            border: 4px solid #1e222b;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            grid-template-columns: repeat(8, 65px);
+            grid-template-rows: repeat(8, 65px);
+            gap: 4px;
+            background-color: #111;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px #000;
         }
 
         .cell {
+            width: 65px;
+            height: 65px;
+            background-color: #3a3a4a;
+            border: 1px solid #555;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 40px;
-            user-select: none;
+            font-weight: bold;
+            font-size: 0.9rem;
             cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s, transform 0.1s;
+            border-radius: 4px;
             position: relative;
         }
 
-        .cell.highlight {
-            box-shadow: inset 0 0 15px #2ed573;
-            background-color: #2ed57344 !important;
-        }
-        
-        .cell.move-valid {
-            box-shadow: inset 0 0 15px #ffa500;
-            background-color: #ffa50044 !important;
-        }
-        
-        .cell.enemy-move-valid {
-            box-shadow: inset 0 0 15px #ff4757;
-            background-color: #ff475744 !important;
-        }
-        
-        .cell.selected {
-            background-color: #70a1ff !important;
-        }
-        
-        .cell.enemy-selected {
-            background-color: #ff475777 !important;
+        .cell:hover {
+            background-color: #4a4a5a;
+            transform: scale(1.03);
         }
 
-        .white { background-color: #f0d9b5; }
-        .black { background-color: #b58863; }
+        /* 구역 시각화 */
+        .cell.player-zone {
+            background-color: #2e3d52;
+            border-color: #4169e1;
+        }
+        .cell.player-zone:hover {
+            background-color: #3a4d66;
+        }
+
+        .cell.enemy-zone {
+            background-color: #4d2b2b;
+            border-color: #b22222;
+            cursor: not-allowed;
+        }
+
+        #draft-zone {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            width: 100%;
+            background: #1a1a24;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        .draft-card {
+            background-color: #2b2b36;
+            border: 2px solid #ffd700;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            width: 100px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .draft-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(255, 215, 0, 0.2);
+            background-color: #353545;
+        }
+
+        .draft-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 1rem;
+            color: #fff;
+        }
+
+        .draft-card p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
 
         .piece {
-            width: 100%;
-            height: 100%;
+            width: 50px;
+            height: 50px;
+            border-radius: 50px;
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 2;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px #000;
+            box-shadow: 0 4px 4px rgba(0,0,0,0.4);
+            position: absolute;
+            font-size: 0.8rem;
+            text-align: center;
+            flex-direction: column;
+            line-height: 1.1;
         }
-        .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
-        .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
+
+        .piece.player {
+            background: linear-gradient(135deg, #1e90ff, #0000ff);
+            border: 2px solid #87cefa;
+        }
+
+        .piece.enemy {
+            background: linear-gradient(135deg, #ff4500, #ff0000);
+            border: 2px solid #ffa07a;
+        }
+
+        .hp-bar {
+            font-size: 0.7rem;
+            color: #ff9999;
+            margin-top: 2px;
+        }
+
+        button {
+            background-color: #ffd700;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: #ffea70;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background-color: #555;
+            color: #888;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #log-container {
+            flex-grow: 1;
+            background-color: #15151c;
+            border-radius: 6px;
+            padding: 10px;
+            overflow-y: auto;
+            max-height: 300px;
+            font-size: 0.85rem;
+            border: 1px solid #333;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 6px;
+            border-bottom: 1px solid #222;
+            padding-bottom: 4px;
+        }
+        .log-player { color: #64b5f6; }
+        .log-enemy { color: #e57373; }
+        .log-system { color: #a1887f; }
+        .log-battle { color: #ffd54f; }
+
+        #stats-panel {
+            background-color: #1a1a24;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .stat-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
 
-    <div id="status-panel">
-        <div id="status-text">To start the game, choose your faction!</div>
-        <div id="button-zone" class="btn-container">
-            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
-            <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
-            <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
+    <h1>Ultimate Faction Wars</h1>
+    
+    <div id="game-container">
+        <!-- 왼쪽 게임판 영역 -->
+        <div id="left-panel">
+            <div id="status-area">게임 시작 버튼을 눌러주세요.</div>
+            <div id="board"></div>
+            <div id="draft-zone" style="display: none;"></div>
+        </div>
+
+        <!-- 오른쪽 컨트롤 / 정보 패널 -->
+        <div id="right-panel">
+            <button id="start-btn" onclick="startGame()">게임 시작</button>
+            <button id="action-btn" onclick="handleActionButton()" disabled>전투 시작</button>
+            
+            <div id="stats-panel">
+                <div class="stat-line"><span>현재 티어:</span><span id="ui-tier">1</span></div>
+                <div class="stat-line"><span>남은 배치 유닛:</span><span id="ui-placements">0</span></div>
+                <div class="stat-line"><span>내 생명력:</span><span id="ui-player-hp">20</span></div>
+                <div class="stat-line"><span>적 생명력:</span><span id="ui-enemy-hp">20</span></div>
+            </div>
+
+            <h3 style="margin: 10px 0 5px 0; color: #ffd700;">전투 로그</h3>
+            <div id="log-container"></div>
         </div>
     </div>
 
-    <div class="chessboard" id="board"></div>
-
     <script>
-        const board = document.getElementById('board');
-        const statusText = document.getElementById('status-text');
-        const buttonZone = document.getElementById('button-zone');
-
-        const PIECE_DATABASE = {
-            Dragon: {
-                6: [{name:"Fire Spirit", emoji:"💥"}, {name:"Magma Slime", emoji:"🍮"}, {name:"Baby Wyvern", emoji:"🦅"}],
-                5: [{name:"Whelp", emoji:"🦎"}, {name:"Imp Fighter", emoji:"😈"}, {name:"Gargoyle Scout", emoji:"🦇"}],
-                4: [{name:"Lava Chariot", emoji:"🚗"}, {name:"Venom Scorpion", emoji:"🦂"}, {name:"Flame Viper", emoji:"🐍"}],
-                3: [{name:"Magma Giant", emoji:"☄️"}, {name:"Mecha Dragon", emoji:"🤖"}, {name:"Acid Wyvern", emoji:"🧪"}],
-                2: [{name:"Flame Lord", emoji:"🔥"}, {name:"Storm Drake", emoji:"⚡"}, {name:"Gargoyle Elder", emoji:"🌪️"}],
-                1: [{name:"Ruination Dragon", emoji:"🌋"}, {name:"Ancient Drake", emoji:"🐉"}, {name:"Abyss Dragon", emoji:"🌌"}]
-            },
-            Elf: {
-                6: [{name:"Spirit Butterfly", emoji:"🦋"}, {name:"Elf Militia", emoji:"🏹"}, {name:"Pixie", emoji:"✨"}],
-                5: [{name:"Druid", emoji:"🌿"}, {name:"Elf Swordsman", emoji:"⚔️"}, {name:"Treant", emoji:"🪵"}],
-                4: [{name:"Leopard Tamer", emoji:"🐆"}, {name:"Owl Scout", emoji:"🦉"}, {name:"Fairy Rogue", emoji:"🧚"}],
-                3: [{name:"Wind Dancer", emoji:"🍃"}, {name:"Illusionist", emoji:"🔮"}, {name:"Centaur Archer", emoji:"🏹"}],
-                2: [{name:"Moonbow Archer", emoji:"🏹"}, {name:"Gryphon Knight", emoji:"🦅"}, {name:"Unicorn Guardian", emoji:"🦄"}],
-                1: [{name:"Elf Queen", emoji:"🧝‍♀️"}, {name:"Worldtree Keeper", emoji:"🌳"}, {name:"Elemental King", emoji:"🧚‍♂️"}]
-            },
-            Human: {
-                6: [{name:"Footman", emoji:"💂"}, {name:"Peasant", emoji:"🧑‍🌾"}, {name:"Recruit", emoji:"🎖️"}],
-                5: [{name:"Apprentice Mage", emoji:"🌟"}, {name:"Spearman", emoji:"🔱"}, {name:"Spy", emoji:"🕵️‍♂️"}],
-                4: [{name:"Gryphon Rider", emoji:"🦅"}, {name:"Royal Archer", emoji:"🏹"}, {name:"Crossbowman", emoji:"🎯"}],
-                3: [{name:"Priest", emoji:"⛪"}, {name:"Shield Bearer", emoji:"🧱"}, {name:"Crusader", emoji:"✝️"}],
-                2: [{name:"Heavy Knight", emoji:"🐴"}, {name:"Royal Assassin", emoji:"🗡️"}, {name:"Siege Cannon", emoji:"💣"}],
-                1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander", emoji:"🛡️"}]
-            }
+        // --- 게임 데이터 정의 ---
+        const FACTIONS = {
+            HUMAN: { name: "휴먼", bonus: "공격력 +10" },
+            ORC: { name: "오크", bonus: "체력 +30" },
+            ELF: { name: "엘프", border: "치명타율 증가" },
+            UNDEAD: { name: "언데드", bonus: "흡혈 능력" }
         };
 
-        let gameState = "CHOOSE_RACE"; 
-        let playerRace = "", enemyRace = "";
-        let currentDraftTier = 6; 
-        let playerSelectedPiece = null, enemySelectedPiece = null;
-        let remainingPlacements = 0;
-        let turn = "player"; 
+        const PIECE_TEMPLATES = [
+            { name: "전사", faction: "HUMAN", hp: 120, atk: 20, def: 5, symbol: "⚔️" },
+            { name: "궁수", faction: "ELF", hp: 80, atk: 30, def: 2, symbol: "🏹" },
+            { name: "버서커", faction: "ORC", hp: 150, atk: 25, def: 1, symbol: "🪓" },
+            { name: "네크로맨서", faction: "UNDEAD", hp: 90, atk: 28, def: 3, symbol: "💀" },
+            { name: "기사", faction: "HUMAN", hp: 160, atk: 18, def: 8, symbol: "🐴" },
+            { name: "로그", faction: "ELF", hp: 85, atk: 35, def: 1, symbol: "🗡️" }
+        ];
 
+        // --- 글로벌 상태 변수 ---
         let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
-        let selectedCell = null; 
-        let validMoves = [];     
+        let gameState = "INIT"; // INIT, DRAFT_CHOICE, DRAFT_LOOP, BATTLE, GAME_OVER
+        let currentTier = 1;
+        let maxTier = 6;
+        let remainingPlacements = 0;
+        let currentDraftOptions = [];
+        let playerSelectedPiece = null;
+        
+        let playerHP = 20;
+        let enemyHP = 20;
+        
+        // 디버깅/추적용: 티어별로 플레이어가 몇 개의 인원을 배치해야 하는지 저장하는 변수
+        let currentTierTotalPlacements = 0;
+
+        // --- 초기화 및 연출 기능 ---
+        function log(message, type = "system") {
+            const container = document.getElementById("log-container");
+            const entry = document.createElement("div");
+            entry.className = `log-entry log-${type}`;
+            entry.innerText = message;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateUI() {
+            document.getElementById("ui-tier").innerText = currentTier;
+            document.getElementById("ui-placements").innerText = remainingPlacements;
+            document.getElementById("ui-player-hp").innerText = playerHP;
+            document.getElementById("ui-enemy-hp").innerText = enemyHP;
+        }
 
         function createBoard() {
-            board.innerHTML = "";
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    const cell = document.createElement('div');
-                    cell.className = `cell ${(row + col) % 2 === 0 ? 'white' : 'black'}`;
-                    cell.dataset.row = row; cell.dataset.col = col;
-                    cell.addEventListener('click', () => handleCellClick(row, col));
-                    board.appendChild(cell);
-                }
-            }
-        }
-
-        function selectRace(race) {
-            playerRace = race;
-            const races = ['Dragon', 'Elf', 'Human'];
-            enemyRace = races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
-            gameState = "DRAFT_LOOP";
-            startTierDraft();
-        }
-
-        function startTierDraft() {
-            let totalToPlace = 1;
-            if (currentDraftTier === 6) totalToPlace = 8;
-            else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) totalToPlace = 2;
-
-            statusText.innerHTML = `[You: ${playerRace} vs Enemy: ${enemyRace}]<br>Choose a Tier ${currentDraftTier} piece. (Deploy ${totalToPlace} copies)`;
-            buttonZone.innerHTML = "";
-
-            PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
-                const btn = document.createElement('button');
-                btn.className = "choice-btn";
-                btn.innerHTML = `${piece.emoji} ${piece.name}`;
-                btn.onclick = () => chooseDraftPiece(piece);
-                buttonZone.appendChild(btn);
-            });
-        }
-
-        function chooseDraftPiece(piece) {
-            playerSelectedPiece = { ...piece, tier: currentDraftTier };
-            
-            if (currentDraftTier === 6) {
-                remainingPlacements = 8;
-            } else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) {
-                remainingPlacements = 2; 
-            } else {
-                remainingPlacements = 1;
-            }
-
-            buttonZone.innerHTML = "";
-            statusText.innerHTML = `Deploy ${piece.emoji} onto your territory (bottom 2 rows). (Remaining: ${remainingPlacements})`;
-
-            const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
-            enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
-
-            highlightDraftZone(true);
-        }
-
-        function highlightDraftZone(on) {
-            document.querySelectorAll('.cell').forEach(cell => {
-                const r = parseInt(cell.dataset.row);
-                if (on && (r === 6 || r === 7)) cell.classList.add('highlight');
-                else cell.classList.remove('highlight');
-            });
-        }
-
-        function handleCellClick(row, col) {
-            if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
-                if ((row === 6 || row === 7) && !boardState[row][col]) {
-                    boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
-                    renderPieces();
-                    remainingPlacements--;
-
-                    aiPlaceEnemyPiece(); 
-
-                    if (remainingPlacements > 0) {
-                        statusText.innerHTML = `Deploy the remaining copies of ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
-                    } else {
-                        highlightDraftZone(false);
-                        playerSelectedPiece = null;
-                        
-                        if (currentDraftTier > 1) {
-                            currentDraftTier--; 
-                            startTierDraft();
-                        } else {
-                            gameState = "GAMEPLAY";
-                            turn = "player";
-                            statusText.innerHTML = "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
-                        }
-                    }
-                }
-            } 
-            else if (gameState === "GAMEPLAY") {
-                if (turn !== "player") return; 
-
-                const clickedCellData = boardState[row][col];
-                const activePiece = selectedCell ? boardState[selectedCell.r][selectedCell.c] : null;
-
-                if (activePiece && activePiece.side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
-                    const from = selectedCell;
-                    
-                    boardState[row][col] = boardState[from.r][from.c];
-                    boardState[from.r][from.c] = null;
-                    
-                    clearHighlights();
-                    selectedCell = null;
-                    renderPieces();
-
-                    if (checkGameOver()) return;
-
-                    turn = "enemy";
-                    statusText.innerHTML = "🤖 Computer is thinking...";
-                    setTimeout(enemyTurn, 1000);
-                    return; 
-                } 
-
-                if (clickedCellData) {
-                    if (clickedCellData.side === 'player') {
-                        clearHighlights();
-                        selectedCell = { r: row, c: col };
-                        document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('selected');
-                        
-                        validMoves = calculateMoves(row, col, clickedCellData);
-                        validMoves.forEach(m => {
-                            document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
-                        });
-                    } 
-                    else if (clickedCellData.side === 'enemy') {
-                        clearHighlights();
-                        selectedCell = { r: row, c: col }; 
-                        document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
-                        
-                        validMoves = calculateMoves(row, col, clickedCellData);
-                        validMoves.forEach(m => {
-                            document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid');
-                        });
-                    }
-                } else {
-                    clearHighlights();
-                    selectedCell = null;
-                }
-            }
-        }
-
-        function aiPlaceEnemyPiece() {
-            let emptySpots = [];
-            for (let r = 0; r <= 1; r++) {
-                for (let c = 0; c < 8; c++) {
-                    if (!boardState[r][c]) emptySpots.push({r, c});
-                }
-            }
-            if (emptySpots.length > 0) {
-                const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-                boardState[spot.r][spot.c] = { ...enemySelectedPiece, side: 'enemy' };
-                renderPieces();
-            }
-        }
-
-        function clearHighlights() {
-            document.querySelectorAll('.cell').forEach(c => {
-                c.classList.remove('selected', 'enemy-selected', 'move-valid', 'enemy-move-valid');
-            });
-        }
-
-        function calculateMoves(row, col, piece) {
-            const moves = [];
-            const side = piece.side;
-            const tier = piece.tier;
-
-            const directions = [
-                {r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}, 
-                {r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1}  
-            ];
-
-            let maxRange = 1;
-            if (tier === 5) maxRange = 2;
-            if (tier === 4) maxRange = 3;
-            if (tier === 3) maxRange = 4;
-            if (tier === 2) maxRange = 5;
-            if (tier === 1) maxRange = 8; 
-
-            directions.forEach(dir => {
-                for (let i = 1; i <= maxRange; i++) {
-                    const nr = row + dir.r * i;
-                    const nc = col + dir.c * i;
-
-                    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break; 
-
-                    const target = boardState[nr][nc];
-                    if (!target) {
-                        moves.push({ r: nr, c: nc });
-                    } else {
-                        if (target.side !== side) {
-                            moves.push({ r: nr, c: nc });
-                        }
-                        break; 
-                    }
-                }
-            });
-
-            if (tier <= 3) {
-                const knightOffsets = [
-                    {r:-2, c:-1}, {r:-2, c:1}, {r:-1, c:-2}, {r:-1, c:2},
-                    {r:1, c:-2}, {r:1, c:2}, {r:2, c:-1}, {r:2, c:1}
-                ];
-                knightOffsets.forEach(off => {
-                    const nr = row + off.r;
-                    const nc = col + off.c;
-                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                        const target = boardState[nr][nc];
-                        if (!target || target.side !== side) {
-                            moves.push({r: nr, c: nc});
-                        }
-                    }
-                });
-            }
-
-            return moves;
-        }
-
-        function enemyTurn() {
-            if (gameState !== "GAMEPLAY") return;
-
-            let allEnemyMoves = [];
-
+            const boardEl = document.getElementById("board");
+            boardEl.innerHTML = "";
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
-                    const piece = boardState[r][c];
-                    if (piece && piece.side === 'enemy') {
-                        const moves = calculateMoves(r, c, piece);
-                        moves.forEach(m => {
-                            let score = 1;
-                            const target = boardState[m.r][m.c];
-                            if (target && target.side === 'player') {
-                                score = 10 + (6 - target.tier); 
-                            }
-                            allEnemyMoves.push({ from: {r, c}, to: m, score: score });
-                        });
-                    }
+                    const cell = document.createElement("div");
+                    cell.className = "cell";
+                    
+                    // 구역 분할설정 (0~3열: 적군 배치구역, 4~5열: 중립, 6~7열: 아군 배치구역)
+                    if (r >= 6) cell.classList.add("player-zone");
+                    if (r <= 1) cell.classList.add("enemy-zone");
+                    
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.addEventListener("click", () => handleCellClick(r, c));
+                    boardEl.appendChild(cell);
                 }
             }
-
-            if (allEnemyMoves.length > 0) {
-                allEnemyMoves.sort((a, b) => b.score - a.score);
-                const bestMove = allEnemyMoves[0];
-
-                const from = bestMove.from;
-                const to = bestMove.to;
-
-                boardState[to.r][to.c] = boardState[from.r][from.c];
-                boardState[from.r][from.c] = null;
-
-                renderPieces();
-
-                if (checkGameOver()) return;
-
-                turn = "player";
-                statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
-            } else {
-                endGame("Player Wins!");
-            }
-        }
-
-        function checkGameOver() {
-            let playerAlive = false;
-            let enemyAlive = false;
-
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    if (boardState[r][c]) {
-                        if (boardState[r][c].side === 'player') playerAlive = true;
-                        if (boardState[r][c].side === 'enemy') enemyAlive = true;
-                    }
-                }
-            }
-
-            if (!playerAlive) { endGame("Computer Wins! You lose."); return true; }
-            if (!enemyAlive) { endGame("Victory is yours!"); return true; }
-            return false;
-        }
-
-        function endGame(message) {
-            gameState = "GAME_OVER";
-            statusText.innerHTML = `🏆 Game Over: ${message}`;
-            buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Restart Game</button>`;
         }
 
         function renderPieces() {
-            document.querySelectorAll('.piece').forEach(p => p.remove());
+            createBoard(); // 매번 재생성해 스타일 초기화 후 말 배치
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
-                    const data = boardState[r][c];
-                    if (data) {
-                        const cell = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
-                        if (cell) {
-                            const pieceEl = document.createElement('div');
-                            pieceEl.className = `piece ${data.side === 'player' ? 'player-p' : 'player-e'}`;
-                            pieceEl.textContent = data.emoji;
-                            cell.appendChild(pieceEl);
-                        }
+                    const p = boardState[r][c];
+                    if (p) {
+                        const cellEl = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
+                        const pEl = document.createElement("div");
+                        pEl.className = `piece ${p.owner}`;
+                        pEl.innerHTML = `<div>${p.symbol} ${p.name}</div><div class='hp-bar'>HP:${p.hp}</div>`;
+                        cellEl.appendChild(pEl);
                     }
                 }
             }
         }
 
+        // --- 게임 진행 흐름 제어 ---
+        function startGame() {
+            log("⚔️ Ultimate Faction Wars에 오신 것을 환영합니다!", "system");
+            document.getElementById("start-btn").style.display = "none";
+            playerHP = 20;
+            enemyHP = 20;
+            currentTier = 1;
+            boardState = Array(8).fill(null).map(() => Array(8).fill(null));
+            startTier(currentTier);
+        }
+
+        function startTier(tier) {
+            if (playerHP <= 0 || enemyHP <= 0) {
+                endGame();
+                return;
+            }
+            if (tier > maxTier) {
+                log("🏆 최종 승부를 결정짓지 못했습니다! 게임 종료.", "system");
+                endGame();
+                return;
+            }
+
+            // 티어별 배치 개수 설정 (티어 1=1개 ... 티어 6=8개)
+            if (tier <= 4) remainingPlacements = tier;
+            else if (tier === 5) remainingPlacements = 6;
+            else if (tier === 6) remainingPlacements = 8;
+
+            currentTierTotalPlacements = remainingPlacements; // AI 동기 배치를 위해 저장
+
+            log(`\n=================== [티어 ${tier} 드래프트 시작] ===================`, "system");
+            gameState = "DRAFT_CHOICE";
+            updateUI();
+            renderPieces();
+            
+            document.getElementById("action-btn").disabled = true;
+            document.getElementById("action-btn").innerText = "드래프트 카드를 선택하세요";
+            
+            generateDraftOptions();
+        }
+
+        function generateDraftOptions() {
+            const draftZone = document.getElementById("draft-zone");
+            draftZone.innerHTML = "";
+            draftZone.style.display = "flex";
+
+            currentDraftOptions = [];
+            // 랜덤 유닛 상점 옵션 3개 생성
+            for (let i = 0; i < 3; i++) {
+                const idx = Math.floor(Math.random() * PIECE_TEMPLATES.length);
+                currentDraftOptions.push({ ...PIECE_TEMPLATES[idx] });
+            }
+
+            currentDraftOptions.forEach((piece, idx) => {
+                const card = document.createElement("div");
+                card.className = "draft-card";
+                card.innerHTML = `<h3>${piece.symbol} ${piece.name}</h3><p>진영: ${FACTIONS[piece.faction].name}</p><p>ATK: ${piece.atk} / DEF: ${piece.def}</p>`;
+                card.addEventListener("click", () => chooseDraftPiece(piece));
+                draftZone.appendChild(card);
+            });
+
+            document.getElementById("status-area").innerText = `티어 ${currentTier}: 위 상점에서 주력으로 운용할 드래프트 카드를 한 개 선택하세요!`;
+        }
+
+        function chooseDraftPiece(piece) {
+            playerSelectedPiece = piece;
+            log(`🎯 드래프트 선택 완료: [${FACTIONS[piece.faction].name}] ${piece.name} 세트를 배치할 수 있습니다.`, "player");
+            
+            document.getElementById("draft-zone").style.display = "none";
+            gameState = "DRAFT_LOOP";
+            
+            document.getElementById("status-area").innerText = `아군 진영 파란색 칸(6~7행)에 유닛을 배치해 주세요. (남은 횟수: ${remainingPlacements}회)`;
+            document.getElementById("action-btn").innerText = "배치 완료 대기중";
+        }
+
+        // --- 유닛 배치 조작 및 버그 해결의 핵심 ---
+        function handleCellClick(row, col) {
+            if (gameState !== "DRAFT_LOOP" || !playerSelectedPiece) return;
+
+            // 아군 배치 영역 제한 (6~7행만 허용) 및 빈칸 여부 확인
+            if (row >= 6 && row <= 7) {
+                if (boardState[row][col] !== null) {
+                    log("❌ 이미 유닛이 배치되어 있는 빈칸입니다.", "system");
+                    return;
+                }
+
+                // 플레이어 말 판에 등록
+                boardState[row][col] = {
+                    ...playerSelectedPiece,
+                    maxHp: playerSelectedPiece.hp,
+                    owner: "player"
+                };
+                
+                log(`[플레이어] (${row}, ${col}) 자리에 유닛을 배치했습니다.`, "player");
+                remainingPlacements--;
+                updateUI();
+                renderPieces();
+
+                // ★ 동기 버그 수정의 핵심: 플레이어가 유닛 배치를 완전히 끝낸 시점에만 AI가 일괄 작동하도록 제어
+                if (remainingPlacements === 0) {
+                    log("🤖 플레이어 배치 완료. 이제 적군(AI)이 유닛을 배치합니다...", "system");
+                    
+                    // 플레이어가 이번 티어에 배치한 유닛 총 개수만큼 AI도 한 번에 배치
+                    aiPlaceEnemyPieces(currentTierTotalPlacements);
+                    
+                    gameState = "BATTLE_READY";
+                    document.getElementById("status-area").innerText = "양 진영 모두 배치가 끝났습니다! 전투를 시작해 주세요.";
+                    document.getElementById("action-btn").disabled = false;
+                    document.getElementById("action-btn").innerText = "전투 시작 ⚔️";
+                }
+            } else {
+                log("❌ 유닛은 하단의 아군 진영(파란색 구역)에만 배치할 수 있습니다.", "system");
+            }
+        }
+
+        // ★ AI 일괄 배치 함수: 지정된 개수(count)만큼 빈 칸을 찾아 무작위로 한 번에 배치
+        function aiPlaceEnemyPieces(count) {
+            let placed = 0;
+            let attempts = 0;
+            const maxAttempts = 200; // 무한루프 방지 안전장치
+
+            while (placed < count && attempts < maxAttempts) {
+                attempts++;
+                // AI 전용 배치 구역: 0~1행 무작위 칸 선택
+                const r = Math.floor(Math.random() * 2);
+                const c = Math.floor(Math.random() * 8);
+
+                if (boardState[r][c] === null) {
+                    // AI용 무작위 유닛 선별
+                    const idx = Math.floor(Math.random() * PIECE_TEMPLATES.length);
+                    const aiTemplate = PIECE_TEMPLATES[idx];
+
+                    boardState[r][c] = {
+                        ...aiTemplate,
+                        maxHp: aiTemplate.hp,
+                        owner: "enemy"
+                    };
+                    
+                    log(`[적군 AI] (${r}, ${c}) 자리에 유닛을 배치했습니다.`, "enemy");
+                    placed++;
+                }
+            }
+            renderPieces();
+        }
+
+        function handleActionButton() {
+            if (gameState === "BATTLE_READY") {
+                runAutoBattle();
+            }
+        }
+
+        // --- 시뮬레이터 전투 엔진 시스템 ---
+        function runAutoBattle() {
+            gameState = "BATTLE";
+            document.getElementById("action-btn").disabled = true;
+            document.getElementById("action-btn").innerText = "교전 진행 중...";
+            log("\n⚔️ 전면 교전이 시작되었습니다!", "battle");
+
+            let round = 1;
+            const battleInterval = setInterval(() => {
+                log(`\n--- 교전 라운드 ${round} ---`, "battle");
+                
+                let playerUnits = [];
+                let enemyUnits = [];
+
+                // 현재 보드에 잔존한 유닛 위치 수집
+                for (let r = 0; r < 8; r++) {
+                    for (let c = 0; c < 8; c++) {
+                        if (boardState[r][c]) {
+                            const unitData = { ...boardState[r][c], curR: r, curC: c };
+                            if (boardState[r][c].owner === "player") playerUnits.push(unitData);
+                            else enemyUnits.push(unitData);
+                        }
+                    }
+                }
+
+                // 둘 중 한쪽이라도 전멸하면 라운드 교전 중지
+                if (playerUnits.length === 0 || enemyUnits.length === 0) {
+                    clearInterval(battleInterval);
+                    determineBattleResult(playerUnits.length, enemyUnits.length);
+                    return;
+                }
+
+                // 1:1 매칭 타격 연출 시뮬레이션
+                const combatCount = Math.min(playerUnits.length, enemyUnits.length);
+                for (let i = 0; i < combatCount; i++) {
+                    const pUnit = boardState[playerUnits[i].curR][playerUnits[i].curC];
+                    const eUnit = boardState[enemyUnits[i].curR][enemyUnits[i].curC];
+
+                    if (!pUnit || !eUnit) continue;
+
+                    // 플레이어 유닛 -> 적군 유닛 공격
+                    const pDamage = Math.max(5, pUnit.atk - eUnit.def);
+                    eUnit.hp -= pDamage;
+                    log(`💥 아군 [${pUnit.name}]이(가) 적군 [${eUnit.name}]에게 ${pDamage}의 피해를 입혔습니다.`, "player");
+
+                    // 적군 유닛 -> 플레이어 유닛 공격
+                    const eDamage = Math.max(5, eUnit.atk - pUnit.def);
+                    pUnit.hp -= eDamage;
+                    log(`💥 적군 [${eUnit.name}]이(가) 아군 [${pUnit.name}]에게 ${eDamage}의 피해를 입혔습니다.`, "enemy");
+
+                    // 체력이 다한 유닛들 사망 처리 제거
+                    if (eUnit.hp <= 0) {
+                        log(`💀 적군 [${eUnit.name}] 유닛이 파괴되었습니다.`, "enemy");
+                        boardState[enemyUnits[i].curR][enemyUnits[i].curC] = null;
+                    }
+                    if (pUnit.hp <= 0) {
+                        log(`💀 아군 [${pUnit.name}] 유닛이 쓰러졌습니다.`, "player");
+                        boardState[playerUnits[i].curR][playerUnits[i].curC] = null;
+                    }
+                }
+
+                renderPieces();
+                round++;
+                if (round > 20) { // 타임아웃 예방 무승부 처리
+                    clearInterval(battleInterval);
+                    log("⏳ 장기전으로 인해 이번 라운드는 무승부 판정되었습니다.", "system");
+                    determineBattleResult(0, 0);
+                }
+            }, 800);
+        }
+
+        // --- 라운드 결과 정산 ---
+        function determineBattleResult(playerCount, enemyCount) {
+            if (playerCount > 0 && enemyCount === 0) {
+                log("🎉 승리! 적 군세를 격퇴하여 적의 넥서스 체력을 깎았습니다.", "player");
+                enemyHP -= 3;
+            } else if (enemyCount > 0 && playerCount === 0) {
+                log("😭 패배! 아군 방어선이 뚫려 플레이어 생명력이 감소했습니다.", "enemy");
+                playerHP -= 3;
+            } else {
+                log("🤝 웅장한 혈투 끝에 양 진영이 동귀어진하여 무승부가 되었습니다.", "system");
+            }
+
+            // 사망 처리되지 않은 잔존 유닛들 다음 라운드 지속 운용을 위해 체력 완치 회복
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (boardState[r][c]) {
+                        boardState[r][c].hp = boardState[r][c].maxHp;
+                    }
+                }
+            }
+
+            updateUI();
+
+            if (playerHP <= 0 || enemyHP <= 0) {
+                endGame();
+            } else {
+                currentTier++;
+                setTimeout(() => {
+                    startTier(currentTier);
+                }, 2000);
+            }
+        }
+
+        function endGame() {
+            gameState = "GAME_OVER";
+            document.getElementById("action-btn").disabled = true;
+            document.getElementById("action-btn").innerText = "게임 종료";
+            
+            if (playerHP > enemyHP) {
+                document.getElementById("status-area").innerText = "🎉 축하합니다! 최종 승리하셨습니다!";
+                log("🏆 플레이어가 최종 승리자로 우뚝 섰습니다!", "battle");
+            } else if (playerHP < enemyHP) {
+                document.getElementById("status-area").innerText = "😭 아쉽게도 최종 패배하셨습니다.";
+                log("💀 적 세력에게 영토를 점령당해 패배했습니다.", "system");
+            } else {
+                document.getElementById("status-area").innerText = "🤝 최종 무승부로 끝났습니다.";
+            }
+            document.getElementById("start-btn").style.display = "block";
+            document.getElementById("start-btn").innerText = "다시 시작하기";
+        }
+
+        // 웹 페이지 로드 시 바둑판 모양 그리드 생성
         createBoard();
     </script>
 </body>
