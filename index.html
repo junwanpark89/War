@@ -407,7 +407,7 @@
 
             if (allEnemyMoves.length > 0) {
                 allEnemyMoves.sort((a, b) => b.score - a.score);
-                const bestMove = allEnemyMoves[0];
+                const bestMove = allEnemyMoves;
 
                 const from = bestMove.from;
                 const to = bestMove.to;
@@ -446,7 +446,7 @@
 
         function endGame(message) {
             gameState = "GAME_OVER";
-            statusText.innerHTML = `🏆 Game Over: ${message}`;
+            statusText.innerHTML = `🏆 ${message}`;
             buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Restart Game</button>`;
         }
 
