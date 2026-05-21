@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>초대박 3종족 전략 보드게임 - 규칙 수정 버전 2</title>
+    <title>초대박 3종족 전략 보드게임 - 위험 범위 표시 버전</title>
     <style>
         body {
             display: flex;
@@ -72,12 +72,23 @@
             box-shadow: inset 0 0 15px #2ed573;
             background-color: #2ed57344 !important;
         }
+        /* 내 기물 이동 가능 칸 (주황색) */
         .cell.move-valid {
             box-shadow: inset 0 0 15px #ffa500;
             background-color: #ffa50044 !important;
         }
+        /* 상대 기물 이동 가능 칸 (빨간색 - 위험 지역) */
+        .cell.enemy-move-valid {
+            box-shadow: inset 0 0 15px #ff4757;
+            background-color: #ff475744 !important;
+        }
+        /* 내가 선택한 기물 강조 (파란색) */
         .cell.selected {
             background-color: #70a1ff !important;
+        }
+        /* 내가 선택한 상대 기물 강조 (어두운 빨간색) */
+        .cell.enemy-selected {
+            background-color: #ff475777 !important;
         }
 
         .white { background-color: #f0d9b5; }
@@ -192,11 +203,10 @@
         function chooseDraftPiece(piece) {
             playerSelectedPiece = { ...piece, tier: currentDraftTier };
             
-            // 티어별 배치해야 하는 총 개수 지정
             if (currentDraftTier === 6) {
                 remainingPlacements = 8;
             } else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) {
-                remainingPlacements = 2; // 똑같은 기물로 2개 배치하도록 개수 고정
+                remainingPlacements = 2; 
             } else {
                 remainingPlacements = 1;
             }
@@ -204,7 +214,6 @@
             buttonZone.innerHTML = "";
             statusText.innerHTML = `내 진영(아래 2줄)에 ${piece.emoji}를 배치하세요. (남은 개수: ${remainingPlacements}개)`;
 
-            // 컴퓨터 AI도 이번 티어에서 쓸 똑같은 기물 1종류를 미리 확정해둡니다.
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
             enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
 
@@ -222,18 +231,15 @@
         function handleCellClick(row, col) {
             if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
                 if ((row === 6 || row === 7) && !boardState[row][col]) {
-                    // 유저가 선택한 바로 '그 똑같은 기물'을 보드에 배치
                     boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
                     renderPieces();
                     remainingPlacements--;
 
-                    // 내가 하나 놓을 때, 컴퓨터도 미리 골라둔 '그 똑같은 기물'을 위 진영에 실시간 배치
                     aiPlaceEnemyPiece(); 
 
                     if (remainingPlacements > 0) {
                         statusText.innerHTML = `동일한 기물(${playerSelectedPiece.emoji})을 마저 배치하세요. (남은 개수: ${remainingPlacements}개)`;
                     } else {
-                        // 선택한 기물의 지정된 개수(8개 또는 2개)를 다 놓았을 때만 다음 티어로 이동
                         highlightDraftZone(false);
                         playerSelectedPiece = null;
                         
@@ -253,7 +259,8 @@
 
                 const clickedCellData = boardState[row][col];
 
-                if (selectedCell && validMoves.some(m => m.r === row && m.c === col)) {
+                // 1. 이미 내 기물을 골라둔 상태에서 주황색 이동 가능 칸을 눌렀을 때 -> 기물 이동
+                if (selectedCell && boardState[selectedCell.r][selectedCell.c] && boardState[selectedCell.r][selectedCell.c].side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
                     const from = selectedCell;
                     
                     boardState[row][col] = boardState[from.r][from.c];
@@ -269,6 +276,7 @@
                     statusText.innerHTML = "🤖 컴퓨터가 생각 중입니다...";
                     setTimeout(enemyTurn, 1000);
                 } 
+                // 2. 내 기물을 클릭했을 때 (주황색 경로 표시)
                 else if (clickedCellData && clickedCellData.side === 'player') {
                     clearHighlights();
                     selectedCell = { r: row, c: col };
@@ -278,7 +286,20 @@
                     validMoves.forEach(m => {
                         document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
                     });
-                } else {
+                } 
+                // 3. [추가] 상대방 기물을 클릭했을 때 (빨간색 경로 표시 - 위험 범위 확인용)
+                else if (clickedCellData && clickedCellData.side === 'enemy') {
+                    clearHighlights();
+                    selectedCell = { r: row, c: col };
+                    document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
+                    
+                    validMoves = calculateMoves(row, col, clickedCellData);
+                    validMoves.forEach(m => {
+                        document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid');
+                    });
+                } 
+                // 4. 빈 곳이나 의미 없는 칸 클릭 시 강조 해제
+                else {
                     clearHighlights();
                     selectedCell = null;
                 }
@@ -301,7 +322,7 @@
 
         function clearHighlights() {
             document.querySelectorAll('.cell').forEach(c => {
-                c.classList.remove('selected', 'move-valid');
+                c.classList.remove('selected', 'enemy-selected', 'move-valid', 'enemy-move-valid');
             });
         }
 
@@ -385,7 +406,7 @@
 
             if (allEnemyMoves.length > 0) {
                 allEnemyMoves.sort((a, b) => b.score - a.score);
-                const bestMove = allEnemyMoves[0];
+                const bestMove = allEnemyMoves;
 
                 const from = bestMove.from;
                 const to = bestMove.to;
