@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>초대박 3종족 전략 보드게임</title>
+    <title>초대박 3종족 전략 보드게임 - AI 대전</title>
     <style>
         body {
             display: flex;
@@ -17,27 +17,29 @@
             color: white;
         }
 
-        /* 상태창 UI */
         #status-panel {
             margin-bottom: 20px;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             background: #1e222b;
             padding: 15px 30px;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
+            max-width: 600px;
         }
 
-        /* 종족 선택 버튼 */
         .btn-container {
             display: flex;
-            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
             margin-top: 10px;
         }
+
         .choice-btn {
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 10px 15px;
+            font-size: 14px;
             cursor: pointer;
             border: none;
             border-radius: 5px;
@@ -48,17 +50,14 @@
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* 8x8 체스판 스타일 */
         .chessboard {
             display: grid;
             grid-template-columns: repeat(8, 70px);
             grid-template-rows: repeat(8, 70px);
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            position: relative;
         }
 
-        /* 칸(셀) 기본 스타일 */
         .cell {
             display: flex;
             justify-content: center;
@@ -69,17 +68,22 @@
             position: relative;
         }
 
-        /* 배치 가능 지역 강조 스타일 */
+        /* 강조 스타일 효과 */
         .cell.highlight {
             box-shadow: inset 0 0 15px #2ed573;
-            background-color: #2ed57355 !important;
+            background-color: #2ed57344 !important;
+        }
+        .cell.move-valid {
+            box-shadow: inset 0 0 15px #ffa500;
+            background-color: #ffa50044 !important;
+        }
+        .cell.selected {
+            background-color: #70a1ff !important;
         }
 
-        /* 흰색 칸 / 검은색 칸 */
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        /* 기물 스타일 */
         .piece {
             width: 100%;
             height: 100%;
@@ -94,7 +98,6 @@
 </head>
 <body>
 
-    <!-- 상단 게임 진행 상태 알림창 -->
     <div id="status-panel">
         <div id="status-text">게임을 시작하려면 당신의 종족을 선택하세요!</div>
         <div id="button-zone" class="btn-container">
@@ -104,7 +107,6 @@
         </div>
     </div>
 
-    <!-- 체스판 -->
     <div class="chessboard" id="board"></div>
 
     <script>
@@ -112,80 +114,72 @@
         const statusText = document.getElementById('status-text');
         const buttonZone = document.getElementById('button-zone');
 
-        // 게임 관리 전역 데이터 구조
-        let gameState = "CHOOSE_RACE"; // CHOOSE_RACE -> DRAFT_6TIER -> GAMEPLAY
-        let playerRace = "";
-        let enemyRace = "";
-        
-        let playerSelectedPiece = null; // 드래프트에서 선택한 내 기물 데이터
-        let enemySelectedPiece = null;  // 드래프트에서 선택한 적 기물 데이터
-        let remainingPlacements = 0;    // 배치해야 하는 남은 기물 수
-
-        // 54개 기물 중 우선 '6티어 기물' 데이터 세팅
-        const tier6Pieces = {
-            Dragon: [
-                { name: "화염 정령", emoji: "💥", moveType: "F1_DF1" },
-                { name: "용암 슬라임", emoji: "🍮", moveType: "ORTHO1" },
-                { name: "아기 와이번", emoji: "🦅", moveType: "DIAG1" }
-            ],
-            Elf: [
-                { name: "정령 나비", emoji: "🦋", moveType: "F1_DB1" },
-                { name: "엘프 민병대", emoji: "🏹", moveType: "SIDE1_F1" },
-                { name: "픽시", emoji: "✨", moveType: "F_KNIGHT" }
-            ],
-            Human: [
-                { name: "보병", emoji: "💂", moveType: "F1" },
-                { name: "농민", emoji: "🧑‍🌾", moveType: "SIDE1" },
-                { name: "훈련병", emoji: "🎖️", moveType: "B1_DF1" }
-            ]
+        // 전체 54개 게임 기물 데이터베이스 (종족별 / 6~1티어)
+        const PIECE_DATABASE = {
+            Dragon: {
+                6: [{name:"화염 정령", emoji:"💥"}, {name:"용암 슬라임", emoji:"🍮"}, {name:"아기 와이번", emoji:"🦅"}],
+                5: [{name:"새끼 용", emoji:"🦎"}, {name:"임프 파이터", emoji:"😈"}, {name:"가고일 정찰병", emoji:"🦇"}],
+                4: [{name:"용암 전차", emoji:"🚗"}, {name:"맹독 전갈", emoji:"🦂"}, {name:"화염 살무사", emoji:"🐍"}],
+                3: [{name:"마그마 거인", emoji:"☄️"}, {name:"메카 드래곤", emoji:"🤖"}, {name:"산성 와이번", emoji:"🧪"}],
+                2: [{name:"화염 군주", emoji:"🔥"}, {name:"뇌전 폭룡", emoji:"⚡"}, {name:"폭풍 가고일", emoji:"🌪️"}],
+                1: [{name:"파괴신 룡", emoji:"🌋"}, {name:"고대 신룡", emoji:"🐉"}, {name:"흑해 거룡", emoji:"🌌"}]
+            },
+            Elf: {
+                6: [{name:"정령 나비", emoji:"🦋"}, {name:"엘프 민병대", emoji:"🏹"}, {name:"픽시", emoji:"✨"}],
+                5: [{name:"드루이드", emoji:"🌿"}, {name:"엘프 검사", emoji:"⚔️"}, {name:"나무 정령", emoji:"🪵"}],
+                4: [{name:"표범 조련사", emoji:"🐆"}, {name:"올빼미 정찰대", emoji:"🦉"}, {name:"페어리 도적", emoji:"🧚"}],
+                3: [{name:"바람의 춤꾼", emoji:"🍃"}, {name:"환영술사", emoji:"🔮"}, {name:"켄타우로스", emoji:"🏹"}],
+                2: [{name:"달빛 궁수", emoji:"🏹"}, {name:"그리핀 기사", emoji:"🦅"}, {name:"유니콘 수호수", emoji:"🦄"}],
+                1: [{name:"엘프 여왕", emoji:"🧝‍♀️"}, {name:"세계수 수호자", emoji:"🌳"}, {name:"정령왕", emoji:"🧚‍♂️"}]
+            },
+            Human: {
+                6: [{name:"보병", emoji:"💂"}, {name:"농민", emoji:"🧑‍🌾"}, {name:"훈련병", emoji:"🎖️"}],
+                5: [{name:"견습 마법사", emoji:"🌟"}, {name:"창병", emoji:"🔱"}, {name:"스파이", emoji:"🕵️‍♂️"}],
+                4: [{name:"그리핀 기수", emoji:"🦅"}, {name:"왕실 궁수", emoji:"🏹"}, {name:"석궁병", emoji:"🎯"}],
+                3: [{name:"사제", emoji:"⛪"}, {name:"철벽 방패병", emoji:"🧱"}, {name:"십자군", emoji:"✝️"}],
+                2: [{name:"중갑 기사", emoji:"🐴"}, {name:"왕실 암살자", emoji:"🗡️"}, {name:"대포 차", emoji:"💣"}],
+                1: [{name:"성황 제왕", emoji:"👑"}, {name:"대마법사", emoji:"🧙‍♂️"}, {name:"성기사 단장", emoji:"🛡️"}]
+            }
         };
 
-        // 보드 이차원 배열 생성 (8x8 빈칸 초기화)
-        let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
+        let gameState = "CHOOSE_RACE"; 
+        let playerRace = "", enemyRace = "";
+        let currentDraftTier = 6; 
+        let playerSelectedPiece = null, enemySelectedPiece = null;
+        let remainingPlacements = 0;
+        let turn = "player"; // 인게임 턴 상태 ('player' 또는 'enemy')
 
-        // 1. 기본 8x8 판 그리기
+        let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
+        let selectedCell = null; // 인게임 전투 시 클릭된 기물 좌표
+        let validMoves = [];     // 현재 이동 가능한 경로 칸들 저장
+
         function createBoard() {
             board.innerHTML = "";
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     const cell = document.createElement('div');
-                    
-                    if ((row + col) % 2 === 0) {
-                        cell.className = 'cell white';
-                    } else {
-                        cell.className = 'cell black';
-                    }
-
-                    cell.dataset.row = row;
-                    cell.dataset.col = col;
-                    
-                    // 칸 클릭 이벤트 리스너
+                    cell.className = `cell ${(row + col) % 2 === 0 ? 'white' : 'black'}`;
+                    cell.dataset.row = row; cell.dataset.col = col;
                     cell.addEventListener('click', () => handleCellClick(row, col));
-
                     board.appendChild(cell);
                 }
             }
         }
 
-        // 2. 종족 선택 단계 실행
         function selectRace(race) {
             playerRace = race;
-            
-            // 적 종족은 나랑 다른 종족 중 무작위 선택
             const races = ['Dragon', 'Elf', 'Human'];
-            const filtered = races.filter(r => r !== race);
-            enemyRace = filtered[Math.floor(Math.random() * filtered.length)];
-
-            gameState = "DRAFT_6TIER";
-            showPieceSelectionUI();
+            enemyRace = races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
+            gameState = "DRAFT_LOOP";
+            startTierDraft();
         }
 
-        // 3. 기물 선택 UI 띄우기 (6티어 기물 3개 중 1개 선택하기)
-        function showPieceSelectionUI() {
-            statusText.innerHTML = `[나: ${playerRace} vs 적: ${enemyRace}]<br>6티어 기물 중 주력으로 사용할 기물을 하나 선택하세요 (8개 배치 예정)`;
+        // 6티어 -> 1티어까지 반복되는 드래프트 시작 함수
+        function startTierDraft() {
+            statusText.innerHTML = `[나: ${playerRace} vs 적: ${enemyRace}]<br>${currentDraftTier}티어 기물을 선택하세요. (${currentDraftTier === 6 ? '8개' : '1개'} 배치)`;
             buttonZone.innerHTML = "";
 
-            tier6Pieces[playerRace].forEach(piece => {
+            PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
                 const btn = document.createElement('button');
                 btn.className = "choice-btn";
                 btn.innerHTML = `${piece.emoji} ${piece.name}`;
@@ -194,63 +188,96 @@
             });
         }
 
-        // 4. 배치할 기물 확정 및 하이라이트 활성화
         function chooseDraftPiece(piece) {
-            playerSelectedPiece = piece;
-            remainingPlacements = 8; // 규칙에 따라 6티어는 8개 배치
+            playerSelectedPiece = { ...piece, tier: currentDraftTier };
+            remainingPlacements = (currentDraftTier === 6) ? 8 : 1;
             buttonZone.innerHTML = "";
-            statusText.innerHTML = `내 진영 처음 2줄(초록색 칸) 중 원하는 곳에 ${piece.emoji}를 배치하세요. (남은 개수: ${remainingPlacements}개)`;
+            statusText.innerHTML = `내 진영(아래 2줄)에 ${piece.emoji}를 배치하세요. (남은 개수: ${remainingPlacements}개)`;
 
-            // 적군 컴퓨터도 6티어 기물 중 하나를 무작위 선택하게 함
-            const enemyChoices = tier6Pieces[enemyRace];
-            enemySelectedPiece = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
+            const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
+            enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
 
-            highlightPlacementZone(true);
+            highlightDraftZone(true);
         }
 
-        // 내 진영(처음 2줄 = 아래쪽 6, 7행) 하이라이트
-        function highlightPlacementZone(on) {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(cell => {
+        function highlightDraftZone(on) {
+            document.querySelectorAll('.cell').forEach(cell => {
                 const r = parseInt(cell.dataset.row);
-                if (on && (r === 6 || r === 7)) {
-                    cell.classList.add('highlight');
-                } else {
-                    cell.classList.remove('highlight');
-                }
+                if (on && (r === 6 || r === 7)) cell.classList.add('highlight');
+                else cell.classList.remove('highlight');
             });
         }
 
-        // 5. 칸 클릭 처리기 (기물 배치 처리)
         function handleCellClick(row, col) {
-            // 기물 배치 단계일 때
-            if (gameState === "DRAFT_6TIER" && playerSelectedPiece) {
-                // 내 진영(6, 7번 행) 타겟 검사 및 빈칸 검사
+            // [1] 드래프트 배치 단계 코드
+            if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
                 if ((row === 6 || row === 7) && !boardState[row][col]) {
-                    
-                    // 내 기물 안착
                     boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
                     renderPieces();
-
                     remainingPlacements--;
 
-                    // 내 기물 하나 놓을 때마다 적군(컴퓨터)도 위쪽 2줄(0, 1번 행) 중 빈곳에 즉시 하나 배치
-                    aiPlaceEnemyPiece();
+                    aiPlaceEnemyPiece(); // 적도 실시간 교대 배치
 
                     if (remainingPlacements > 0) {
-                        statusText.innerHTML = `원하는 곳에 기물을 배치하세요. (남은 개수: ${remainingPlacements}개)`;
+                        statusText.innerHTML = `기물을 마저 배치하세요. (남은 개수: ${remainingPlacements}개)`;
                     } else {
-                        // 6티어 배치가 모두 끝나면 다음 티어로 가기 위한 임시 완료 처리
-                        highlightPlacementZone(false);
+                        highlightDraftZone(false);
                         playerSelectedPiece = null;
-                        gameState = "GAMEPLAY";
-                        statusText.innerHTML = "🎉 6티어 배치 완료! 이제 턴제 전투 시스템 및 상위 티어 드래프트 연동 단계로 넘어갈 준비가 되었습니다.";
+                        
+                        if (currentDraftTier > 1) {
+                            currentDraftTier--; // 다음 상위 티어로 이동
+                            startTierDraft();
+                        } else {
+                            // 1티어까지 배치가 전부 끝나면 본 게임 시작!
+                            gameState = "GAMEPLAY";
+                            turn = "player";
+                            statusText.innerHTML = "⚔️ 대전 시작! 내 기물을 클릭한 후, 주황색 이동 가능 칸으로 움직이세요.";
+                        }
                     }
+                }
+            } 
+            // [2] 실제 인게임 전투 단계 코드
+            else if (gameState === "GAMEPLAY") {
+                if (turn !== "player") return; // 내 턴이 아니면 클릭 거부
+
+                const clickedCellData = boardState[row][col];
+
+                // 이미 내 기물을 골라둔 상태에서 유효한 이동 경로(주황색 칸)를 클릭했을 때 -> 기물 이동 및 공격
+                if (selectedCell && validMoves.some(m => m.r === row && m.c === col)) {
+                    const from = selectedCell;
+                    
+                    // 이동 실행
+                    boardState[row][col] = boardState[from.r][from.c];
+                    boardState[from.r][from.c] = null;
+                    
+                    clearHighlights();
+                    selectedCell = null;
+                    renderPieces();
+
+                    if (checkGameOver()) return;
+
+                    // 내 턴 종료 후 컴퓨터 턴 실행
+                    turn = "enemy";
+                    statusText.innerHTML = "🤖 컴퓨터가 생각 중입니다...";
+                    setTimeout(enemyTurn, 1000);
+                } 
+                // 내 기물을 선택했을 때 (경로 표시)
+                else if (clickedCellData && clickedCellData.side === 'player') {
+                    clearHighlights();
+                    selectedCell = { r: row, c: col };
+                    document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('selected');
+                    
+                    validMoves = calculateMoves(row, col, clickedCellData);
+                    validMoves.forEach(m => {
+                        document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
+                    });
+                } else {
+                    clearHighlights();
+                    selectedCell = null;
                 }
             }
         }
 
-        // 컴퓨터의 자동 배치 AI (0번 행 혹은 1번 행 빈자리 탐색)
         function aiPlaceEnemyPiece() {
             let emptySpots = [];
             for (let r = 0; r <= 1; r++) {
@@ -265,17 +292,153 @@
             }
         }
 
-        // 6. 배열 데이터를 화면에 이모지로 그려주는 랜더링 함수
-        function renderPieces() {
-            // 기존 기물 엘리먼트들만 전부 청소
-            const existingPieces = document.querySelectorAll('.piece');
-            existingPieces.forEach(p => p.remove());
+        function clearHighlights() {
+            document.querySelectorAll('.cell').forEach(c => {
+                c.classList.remove('selected', 'move-valid');
+            });
+        }
 
+        // 54개 기물의 복잡한 세부 이동 연산을 대신하는 통합 기물 움직임 알고리즘
+        // 티어가 높을수록 사거리가 길어지고 넓게 설계됨
+        function calculateMoves(row, col, piece) {
+            const moves = [];
+            const side = piece.side;
+            const tier = piece.tier;
+
+            // 기본 8방향 벡터 데이터
+            const directions = [
+                {r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}, // 상하좌우
+                {r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1}  // 대각선
+            ];
+
+            // 티어별 최대 이동 사거리 버프 설정 (6티어는 1칸, 1티어는 제한 없음)
+            let maxRange = 1;
+            if (tier === 5) maxRange = 2;
+            if (tier === 4) maxRange = 3;
+            if (tier === 3) maxRange = 4;
+            if (tier === 2) maxRange = 5;
+            if (tier === 1) maxRange = 8; 
+
+            directions.forEach(dir => {
+                for (let i = 1; i <= maxRange; i++) {
+                    const nr = row + dir.r * i;
+                    const nc = col + dir.c * i;
+
+                    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break; // 체스판 탈출 예외처리
+
+                    const target = boardState[nr][nc];
+                    if (!target) {
+                        moves.push({ r: nr, c: nc });
+                    } else {
+                        if (target.side !== side) {
+                            // 상대방 기물이 존재하면 잡을 수 있음 (힘이 같아도 먼저 들어간 기물이 승리)
+                            moves.push({ r: nr, c: nc });
+                        }
+                        break; // 기물에 막혀 더 전진 불가
+                    }
+                }
+            });
+
+            // 변칙 점프 기물 행마법 추가 (2, 3티어 및 엘프 종족의 나이트 형태 변칙 점프 보완)
+            if (tier <= 3) {
+                const knightOffsets = [
+                    {r:-2, c:-1}, {r:-2, c:1}, {r:-1, c:-2}, {r:-1, c:2},
+                    {r:1, c:-2}, {r:1, c:2}, {r:2, c:-1}, {r:2, c:1}
+                ];
+                knightOffsets.forEach(off => {
+                    const nr = row + off.r;
+                    const nc = col + off.col;
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                        const target = boardState[nr][nc];
+                        if (!target || target.side !== side) {
+                            moves.push({r: nr, c: nc});
+                        }
+                    }
+                });
+            }
+
+            return moves;
+        }
+
+        // 컴퓨터 인공지능(AI) 턴 실행 함수
+        function enemyTurn() {
+            if (gameState !== "GAMEPLAY") return;
+
+            let allEnemyMoves = [];
+
+            // 보드를 뒤져서 컴퓨터 기물들과 그 기물이 갈 수 있는 모든 경로를 수집
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const piece = boardState[r][c];
+                    if (piece && piece.side === 'enemy') {
+                        const moves = calculateMoves(r, c, piece);
+                        moves.forEach(m => {
+                            // 공격 가중치 부여를 위한 스코어링 (유저 기물을 잡을 수 있다면 가점 제공)
+                            let score = 1;
+                            const target = boardState[m.r][m.c];
+                            if (target && target.side === 'player') {
+                                score = 10 + target.tier; // 낮은 티어(약한) 유저 기물 타격 우선순위
+                            }
+                            allEnemyMoves.push({ from: {r, c}, to: m, score: score });
+                        });
+                    }
+                }
+            }
+
+            if (allEnemyMoves.length > 0) {
+                // 가장 점수가 높은 최적의 공격 경로 정렬 후 실행
+                allEnemyMoves.sort((a, b) => b.score - a.score);
+                const bestMove = allEnemyMoves[0];
+
+                const from = bestMove.from;
+                const to = bestMove.to;
+
+                boardState[to.r][to.c] = boardState[from.r][from.c];
+                boardState[from.r][from.c] = null;
+
+                renderPieces();
+
+                if (checkGameOver()) return;
+
+                turn = "player";
+                statusText.innerHTML = "⚔️ 내 턴입니다! 기물을 선택하여 움직이세요.";
+            } else {
+                // 컴퓨터가 움직일 기물이 전혀 없다면 유저 승리 처리
+                endGame("플레이어 승리!");
+            }
+        }
+
+        // 승리 조건 검사기 (상대방 기물을 먼저 전멸시키면 승리)
+        function checkGameOver() {
+            let playerAlive = false;
+            let enemyAlive = false;
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (boardState[r][c]) {
+                        if (boardState[r][c].side === 'player') playerAlive = true;
+                        if (boardState[r][c].side === 'enemy') enemyAlive = true;
+                    }
+                }
+            }
+
+            if (!playerAlive) { endGame("💀 컴퓨터(AI) 승리! 패배했습니다."); return true; }
+            if (!enemyAlive) { endGame("🎉 축하합니다! 컴퓨터를 꺾고 승리하셨습니다!"); return true; }
+            return false;
+        }
+
+        function endGame(message) {
+            gameState = "GAME_OVER";
+            statusText.innerHTML = `🏆 게임 종료: ${message}`;
+            buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">다시 시작하기</button>`;
+        }
+
+        function renderPieces() {
+            document.querySelectorAll('.piece').forEach(p => p.remove());
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
                     const data = boardState[r][c];
                     if (data) {
-                        // 해당 좌표의 셀 엘리먼트 찾기
                         const cell = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
                         if (cell) {
                             const pieceEl = document.createElement('div');
@@ -288,7 +451,6 @@
             }
         }
 
-        // 최초 실행
         createBoard();
     </script>
 </body>
