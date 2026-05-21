@@ -3,17 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>우리들의 초대박 체스 게임</title>
+    <title>초대박 3종족 전략 보드게임</title>
     <style>
         body {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             background-color: #2f3542;
             margin: 0;
             font-family: Arial, sans-serif;
+            color: white;
         }
+
+        /* 상태창 UI */
+        #status-panel {
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            background: #1e222b;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        /* 종족 선택 버튼 */
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .choice-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #ff4757;
+            color: white;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .choice-btn:hover { background-color: #ff6b81; }
 
         /* 8x8 체스판 스타일 */
         .chessboard {
@@ -22,6 +55,7 @@
             grid-template-rows: repeat(8, 70px);
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
         }
 
         /* 칸(셀) 기본 스타일 */
@@ -31,46 +65,231 @@
             align-items: center;
             font-size: 40px;
             user-select: none;
+            cursor: pointer;
+            position: relative;
         }
 
-        /* 흰색 칸 */
-        .white {
-            background-color: #f0d9b5;
+        /* 배치 가능 지역 강조 스타일 */
+        .cell.highlight {
+            box-shadow: inset 0 0 15px #2ed573;
+            background-color: #2ed57355 !important;
         }
 
-        /* 검은색(갈색) 칸 */
-        .black {
-            background-color: #b58863;
+        /* 흰색 칸 / 검은색 칸 */
+        .white { background-color: #f0d9b5; }
+        .black { background-color: #b58863; }
+
+        /* 기물 스타일 */
+        .piece {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
         }
+        .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
+        .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
     </style>
 </head>
 <body>
 
-    <!-- 체스판이 들어갈 자리 -->
+    <!-- 상단 게임 진행 상태 알림창 -->
+    <div id="status-panel">
+        <div id="status-text">게임을 시작하려면 당신의 종족을 선택하세요!</div>
+        <div id="button-zone" class="btn-container">
+            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
+            <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
+            <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
+        </div>
+    </div>
+
+    <!-- 체스판 -->
     <div class="chessboard" id="board"></div>
 
     <script>
         const board = document.getElementById('board');
+        const statusText = document.getElementById('status-text');
+        const buttonZone = document.getElementById('button-zone');
 
-        // 8x8 총 64개의 칸을 반복문으로 자동 생성
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                const cell = document.createElement('div');
-                
-                // 짝수/홀수 계산해서 흰칸, 검은칸 번갈아가며 배치
-                if ((row + col) % 2 === 0) {
-                    cell.className = 'cell white';
-                } else {
-                    cell.className = 'cell black';
+        // 게임 관리 전역 데이터 구조
+        let gameState = "CHOOSE_RACE"; // CHOOSE_RACE -> DRAFT_6TIER -> GAMEPLAY
+        let playerRace = "";
+        let enemyRace = "";
+        
+        let playerSelectedPiece = null; // 드래프트에서 선택한 내 기물 데이터
+        let enemySelectedPiece = null;  // 드래프트에서 선택한 적 기물 데이터
+        let remainingPlacements = 0;    // 배치해야 하는 남은 기물 수
+
+        // 54개 기물 중 우선 '6티어 기물' 데이터 세팅
+        const tier6Pieces = {
+            Dragon: [
+                { name: "화염 정령", emoji: "💥", moveType: "F1_DF1" },
+                { name: "용암 슬라임", emoji: "🍮", moveType: "ORTHO1" },
+                { name: "아기 와이번", emoji: "🦅", moveType: "DIAG1" }
+            ],
+            Elf: [
+                { name: "정령 나비", emoji: "🦋", moveType: "F1_DB1" },
+                { name: "엘프 민병대", emoji: "🏹", moveType: "SIDE1_F1" },
+                { name: "픽시", emoji: "✨", moveType: "F_KNIGHT" }
+            ],
+            Human: [
+                { name: "보병", emoji: "💂", moveType: "F1" },
+                { name: "농민", emoji: "🧑‍🌾", moveType: "SIDE1" },
+                { name: "훈련병", emoji: "🎖️", moveType: "B1_DF1" }
+            ]
+        };
+
+        // 보드 이차원 배열 생성 (8x8 빈칸 초기화)
+        let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
+
+        // 1. 기본 8x8 판 그리기
+        function createBoard() {
+            board.innerHTML = "";
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const cell = document.createElement('div');
+                    
+                    if ((row + col) % 2 === 0) {
+                        cell.className = 'cell white';
+                    } else {
+                        cell.className = 'cell black';
+                    }
+
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    // 칸 클릭 이벤트 리스너
+                    cell.addEventListener('click', () => handleCellClick(row, col));
+
+                    board.appendChild(cell);
                 }
-
-                // 나중에 좌표 확인하기 편하게 데이터 심어두기 (예: row-0-col-0)
-                cell.dataset.row = row;
-                cell.dataset.col = col;
-
-                board.appendChild(cell);
             }
         }
+
+        // 2. 종족 선택 단계 실행
+        function selectRace(race) {
+            playerRace = race;
+            
+            // 적 종족은 나랑 다른 종족 중 무작위 선택
+            const races = ['Dragon', 'Elf', 'Human'];
+            const filtered = races.filter(r => r !== race);
+            enemyRace = filtered[Math.floor(Math.random() * filtered.length)];
+
+            gameState = "DRAFT_6TIER";
+            showPieceSelectionUI();
+        }
+
+        // 3. 기물 선택 UI 띄우기 (6티어 기물 3개 중 1개 선택하기)
+        function showPieceSelectionUI() {
+            statusText.innerHTML = `[나: ${playerRace} vs 적: ${enemyRace}]<br>6티어 기물 중 주력으로 사용할 기물을 하나 선택하세요 (8개 배치 예정)`;
+            buttonZone.innerHTML = "";
+
+            tier6Pieces[playerRace].forEach(piece => {
+                const btn = document.createElement('button');
+                btn.className = "choice-btn";
+                btn.innerHTML = `${piece.emoji} ${piece.name}`;
+                btn.onclick = () => chooseDraftPiece(piece);
+                buttonZone.appendChild(btn);
+            });
+        }
+
+        // 4. 배치할 기물 확정 및 하이라이트 활성화
+        function chooseDraftPiece(piece) {
+            playerSelectedPiece = piece;
+            remainingPlacements = 8; // 규칙에 따라 6티어는 8개 배치
+            buttonZone.innerHTML = "";
+            statusText.innerHTML = `내 진영 처음 2줄(초록색 칸) 중 원하는 곳에 ${piece.emoji}를 배치하세요. (남은 개수: ${remainingPlacements}개)`;
+
+            // 적군 컴퓨터도 6티어 기물 중 하나를 무작위 선택하게 함
+            const enemyChoices = tier6Pieces[enemyRace];
+            enemySelectedPiece = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
+
+            highlightPlacementZone(true);
+        }
+
+        // 내 진영(처음 2줄 = 아래쪽 6, 7행) 하이라이트
+        function highlightPlacementZone(on) {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                const r = parseInt(cell.dataset.row);
+                if (on && (r === 6 || r === 7)) {
+                    cell.classList.add('highlight');
+                } else {
+                    cell.classList.remove('highlight');
+                }
+            });
+        }
+
+        // 5. 칸 클릭 처리기 (기물 배치 처리)
+        function handleCellClick(row, col) {
+            // 기물 배치 단계일 때
+            if (gameState === "DRAFT_6TIER" && playerSelectedPiece) {
+                // 내 진영(6, 7번 행) 타겟 검사 및 빈칸 검사
+                if ((row === 6 || row === 7) && !boardState[row][col]) {
+                    
+                    // 내 기물 안착
+                    boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
+                    renderPieces();
+
+                    remainingPlacements--;
+
+                    // 내 기물 하나 놓을 때마다 적군(컴퓨터)도 위쪽 2줄(0, 1번 행) 중 빈곳에 즉시 하나 배치
+                    aiPlaceEnemyPiece();
+
+                    if (remainingPlacements > 0) {
+                        statusText.innerHTML = `원하는 곳에 기물을 배치하세요. (남은 개수: ${remainingPlacements}개)`;
+                    } else {
+                        // 6티어 배치가 모두 끝나면 다음 티어로 가기 위한 임시 완료 처리
+                        highlightPlacementZone(false);
+                        playerSelectedPiece = null;
+                        gameState = "GAMEPLAY";
+                        statusText.innerHTML = "🎉 6티어 배치 완료! 이제 턴제 전투 시스템 및 상위 티어 드래프트 연동 단계로 넘어갈 준비가 되었습니다.";
+                    }
+                }
+            }
+        }
+
+        // 컴퓨터의 자동 배치 AI (0번 행 혹은 1번 행 빈자리 탐색)
+        function aiPlaceEnemyPiece() {
+            let emptySpots = [];
+            for (let r = 0; r <= 1; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (!boardState[r][c]) emptySpots.push({r, c});
+                }
+            }
+            if (emptySpots.length > 0) {
+                const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+                boardState[spot.r][spot.c] = { ...enemySelectedPiece, side: 'enemy' };
+                renderPieces();
+            }
+        }
+
+        // 6. 배열 데이터를 화면에 이모지로 그려주는 랜더링 함수
+        function renderPieces() {
+            // 기존 기물 엘리먼트들만 전부 청소
+            const existingPieces = document.querySelectorAll('.piece');
+            existingPieces.forEach(p => p.remove());
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const data = boardState[r][c];
+                    if (data) {
+                        // 해당 좌표의 셀 엘리먼트 찾기
+                        const cell = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
+                        if (cell) {
+                            const pieceEl = document.createElement('div');
+                            pieceEl.className = `piece ${data.side === 'player' ? 'player-p' : 'player-e'}`;
+                            pieceEl.textContent = data.emoji;
+                            cell.appendChild(pieceEl);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 최초 실행
+        createBoard();
     </script>
 </body>
 </html>
