@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>초대박 3종족 전략 보드게임 - 위험 범위 완벽 수정</title>
+    <title>Ultimate 3-Faction Strategy Board Game - AI Battle</title>
     <style>
         body {
             display: flex;
@@ -72,21 +72,21 @@
             box-shadow: inset 0 0 15px #2ed573;
             background-color: #2ed57344 !important;
         }
-        /* 내 기물 이동 가능 칸 (주황색) */
+        /* Player piece movement path (Orange) */
         .cell.move-valid {
             box-shadow: inset 0 0 15px #ffa500;
             background-color: #ffa50044 !important;
         }
-        /* 상대 기물 이동 가능 칸 (빨간색 - 위험 지역) */
+        /* Enemy piece movement path (Red - Danger Zone) */
         .cell.enemy-move-valid {
             box-shadow: inset 0 0 15px #ff4757;
             background-color: #ff475744 !important;
         }
-        /* 내가 선택한 내 기물 강조 (파란색) */
+        /* Player piece selection highlight (Blue) */
         .cell.selected {
             background-color: #70a1ff !important;
         }
-        /* 내가 선택한 상대 기물 강조 (어두운 빨간색) */
+        /* Enemy piece selection highlight (Dark Red) */
         .cell.enemy-selected {
             background-color: #ff475777 !important;
         }
@@ -109,7 +109,7 @@
 <body>
 
     <div id="status-panel">
-        <div id="status-text">게임을 시작하려면 당신의 종족을 선택하세요!</div>
+        <div id="status-text">To start the game, choose your faction!</div>
         <div id="button-zone" class="btn-container">
             <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
             <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
@@ -124,30 +124,31 @@
         const statusText = document.getElementById('status-text');
         const buttonZone = document.getElementById('button-zone');
 
+        // Full 54 Pieces Database fully translated to English
         const PIECE_DATABASE = {
             Dragon: {
-                6: [{name:"화염 정령", emoji:"💥"}, {name:"용암 슬라임", emoji:"🍮"}, {name:"아기 와이번", emoji:"🦅"}],
-                5: [{name:"새끼 용", emoji:"🦎"}, {name:"임프 파이터", emoji:"😈"}, {name:"가고일 정찰병", emoji:"🦇"}],
-                4: [{name:"용암 전차", emoji:"🚗"}, {name:"맹독 전갈", emoji:"🦂"}, {name:"화염 살무사", emoji:"🐍"}],
-                3: [{name:"마그마 거인", emoji:"☄️"}, {name:"메카 드래곤", emoji:"🤖"}, {name:"산성 와이번", emoji:"🧪"}],
-                2: [{name:"화염 군주", emoji:"🔥"}, {name:"뇌전 폭룡", emoji:"⚡"}, {name:"폭풍 가고일", emoji:"🌪️"}],
-                1: [{name:"파괴신 룡", emoji:"🌋"}, {name:"고대 신룡", emoji:"🐉"}, {name:"흑해 거룡", emoji:"🌌"}]
+                6: [{name:"Fire Spirit", emoji:"💥"}, {name:"Magma Slime", emoji:"🍮"}, {name:"Baby Wyvern", emoji:"🦅"}],
+                5: [{name:"Whelp", emoji:"🦎"}, {name:"Imp Fighter", emoji:"😈"}, {name:"Gargoyle Scout", emoji:"🦇"}],
+                4: [{name:"Lava Chariot", emoji:"🚗"}, {name:"Venom Scorpion", emoji:"🦂"}, {name:"Flame Viper", emoji:"🐍"}],
+                3: [{name:"Magma Giant", emoji:"☄️"}, {name:"Mecha Dragon", emoji:"🤖"}, {name:"Acid Wyvern", emoji:"🧪"}],
+                2: [{name:"Flame Lord", emoji:"🔥"}, {name:"Storm Drake", emoji:"⚡"}, {name:"Gargoyle Elder", emoji:"🌪️"}],
+                1: [{name:"Ruination Dragon", emoji:"🌋"}, {name:"Ancient Drake", emoji:"🐉"}, {name:"Abyss Dragon", emoji:"🌌"}]
             },
             Elf: {
-                6: [{name:"정령 나비", emoji:"🦋"}, {name:"엘프 민병대", emoji:"🏹"}, {name:"픽시", emoji:"✨"}],
-                5: [{name:"드루이드", emoji:"🌿"}, {name:"엘프 검사", emoji:"⚔️"}, {name:"나무 정령", emoji:"🪵"}],
-                4: [{name:"표범 조련사", emoji:"🐆"}, {name:"올빼미 정찰대", emoji:"🦉"}, {name:"페어리 도적", emoji:"🧚"}],
-                3: [{name:"바람의 춤꾼", emoji:"🍃"}, {name:"환영술사", emoji:"🔮"}, {name:"켄타우로스", emoji:"🏹"}],
-                2: [{name:"달빛 궁수", emoji:"🏹"}, {name:"그리핀 기사", emoji:"🦅"}, {name:"유니콘 수호수", emoji:"🦄"}],
-                1: [{name:"엘프 여왕", emoji:"🧝‍♀️"}, {name:"세계수 수호자", emoji:"🌳"}, {name:"정령왕", emoji:"🧚‍♂️"}]
+                6: [{name:"Spirit Butterfly", emoji:"🦋"}, {name:"Elf Militia", emoji:"🏹"}, {name:"Pixie", emoji:"✨"}],
+                5: [{name:"Druid", emoji:"🌿"}, {name:"Elf Swordsman", emoji:"⚔️"}, {name:"Treant", emoji:"🪵"}],
+                4: [{name:"Leopard Tamer", emoji:"🐆"}, {name:"Owl Scout", emoji:"🦉"}, {name:"Fairy Rogue", emoji:"🧚"}],
+                3: [{name:"Wind Dancer", emoji:"🍃"}, {name:"Illusionist", emoji:"🔮"}, {name:"Centaur Archer", emoji:"🏹"}],
+                2: [{name:"Moonbow Archer", emoji:"🏹"}, {name:"Gryphon Knight", emoji:"🦅"}, {name:"Unicorn Guardian", emoji:"🦄"}],
+                1: [{name:"Elf Queen", emoji:"🧝‍♀️"}, {name:"Worldtree Keeper", emoji:"🌳"}, {name:"Elemental King", emoji:"🧚‍♂️"}]
             },
             Human: {
-                6: [{name:"보병", emoji:"💂"}, {name:"농민", emoji:"🧑‍🌾"}, {name:"훈련병", emoji:"🎖️"}],
-                5: [{name:"견습 마법사", emoji:"🌟"}, {name:"창병", emoji:"🔱"}, {name:"스파이", emoji:"🕵️‍♂️"}],
-                4: [{name:"그리핀 기수", emoji:"🦅"}, {name:"왕실 궁수", emoji:"🏹"}, {name:"석궁병", emoji:"🎯"}],
-                3: [{name:"사제", emoji:"⛪"}, {name:"철벽 방패병", emoji:"🧱"}, {name:"십자군", emoji:"✝️"}],
-                2: [{name:"중갑 기사", emoji:"🐴"}, {name:"왕실 암살자", emoji:"🗡️"}, {name:"대포 차", emoji:"💣"}],
-                1: [{name:"성황 제왕", emoji:"👑"}, {name:"대마법사", emoji:"🧙‍♂️"}, {name:"성기사 단장", emoji:"🛡️"}]
+                6: [{name:"Footman", emoji:"💂"}, {name:"Peasant", emoji:"🧑‍🌾"}, {name:"Recruit", emoji:"🎖️"}],
+                5: [{name:"Apprentice Mage", emoji:"🌟"}, {name:"Spearman", emoji:"🔱"}, {name:"Spy", emoji:"🕵️‍♂️"}],
+                4: [{name:"Gryphon Rider", emoji:"🦅"}, {name:"Royal Archer", emoji:"🏹"}, {name:"Crossbowman", emoji:"🎯"}],
+                3: [{name:"Priest", emoji:"⛪"}, {name:"Shield Bearer", emoji:"🧱"}, {name:"Crusader", emoji:"✝️"}],
+                2: [{name:"Heavy Knight", emoji:"🐴"}, {name:"Royal Assassin", emoji:"🗡️"}, {name:"Siege Cannon", emoji:"💣"}],
+                1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander", emoji:"🛡️"}]
             }
         };
 
@@ -188,7 +189,7 @@
             if (currentDraftTier === 6) totalToPlace = 8;
             else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) totalToPlace = 2;
 
-            statusText.innerHTML = `[나: ${playerRace} vs 적: ${enemyRace}]<br>${currentDraftTier}티어 기물을 선택하세요. (선택한 기물을 총 ${totalToPlace}개 배치합니다)`;
+            statusText.innerHTML = `[You: ${playerRace} vs Enemy: ${enemyRace}]<br>Choose a Tier ${currentDraftTier} piece. (Deploy ${totalToPlace} copies)`;
             buttonZone.innerHTML = "";
 
             PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
@@ -212,7 +213,7 @@
             }
 
             buttonZone.innerHTML = "";
-            statusText.innerHTML = `내 진영(아래 2줄)에 ${piece.emoji}를 배치하세요. (남은 개수: ${remainingPlacements}개)`;
+            statusText.innerHTML = `Deploy ${piece.emoji} onto your territory (bottom 2 rows). (Remaining: ${remainingPlacements})`;
 
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
             enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
@@ -238,7 +239,7 @@
                     aiPlaceEnemyPiece(); 
 
                     if (remainingPlacements > 0) {
-                        statusText.innerHTML = `동일한 기물(${playerSelectedPiece.emoji})을 마저 배치하세요. (남은 개수: ${remainingPlacements}개)`;
+                        statusText.innerHTML = `Deploy the remaining copies of ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
                     } else {
                         highlightDraftZone(false);
                         playerSelectedPiece = null;
@@ -249,7 +250,7 @@
                         } else {
                             gameState = "GAMEPLAY";
                             turn = "player";
-                            statusText.innerHTML = "⚔️ 대전 시작! 내 기물을 클릭한 후, 주황색 이동 가능 칸으로 움직이세요.";
+                            statusText.innerHTML = "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
                         }
                     }
                 }
@@ -260,7 +261,6 @@
                 const clickedCellData = boardState[row][col];
                 const activePiece = selectedCell ? boardState[selectedCell.r][selectedCell.c] : null;
 
-                // [버그 수정 완료] 내 기물을 선택한 상태이고, 클릭한 대상이 이동 경로(주황색) 안에 있을 때만 공격/이동 실행
                 if (activePiece && activePiece.side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
                     const from = selectedCell;
                     
@@ -274,14 +274,12 @@
                     if (checkGameOver()) return;
 
                     turn = "enemy";
-                    statusText.innerHTML = "🤖 컴퓨터가 생각 중입니다...";
+                    statusText.innerHTML = "🤖 Computer is thinking...";
                     setTimeout(enemyTurn, 1000);
-                    return; // 이동 처리 후 즉시 조기 리턴으로 아래 상대 클릭 로직 중복 방지
+                    return; 
                 } 
 
-                // 위의 공격/이동 상황이 아니라면 순수한 기물 선택 모드로 진입
                 if (clickedCellData) {
-                    // 내 기물을 선택했을 때 (주황색 이동선 표시)
                     if (clickedCellData.side === 'player') {
                         clearHighlights();
                         selectedCell = { r: row, c: col };
@@ -292,10 +290,9 @@
                             document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
                         });
                     } 
-                    // 상대방 기물을 클릭했을 때 (빨간색 위험선 표시)
                     else if (clickedCellData.side === 'enemy') {
                         clearHighlights();
-                        selectedCell = { r: row, c: col }; // 위험 반경 조회를 위해 잠시 포커스 이동
+                        selectedCell = { r: row, c: col }; 
                         document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
                         
                         validMoves = calculateMoves(row, col, clickedCellData);
@@ -304,7 +301,6 @@
                         });
                     }
                 } else {
-                    // 빈 땅을 누르면 포커싱 및 모든 표시선 해제
                     clearHighlights();
                     selectedCell = null;
                 }
@@ -411,7 +407,7 @@
 
             if (allEnemyMoves.length > 0) {
                 allEnemyMoves.sort((a, b) => b.score - a.score);
-                const bestMove = allEnemyMoves;
+                const bestMove = allEnemyMoves[0];
 
                 const from = bestMove.from;
                 const to = bestMove.to;
@@ -424,9 +420,9 @@
                 if (checkGameOver()) return;
 
                 turn = "player";
-                statusText.innerHTML = "⚔️ 내 턴입니다! 기물을 선택하여 움직이세요.";
+                statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
             } else {
-                endGame("플레이어 승리!");
+                endGame("Player Wins!");
             }
         }
 
@@ -443,15 +439,15 @@
                 }
             }
 
-            if (!playerAlive) { endGame("💀 컴퓨터(AI) 승리! 패배했습니다."); return true; }
-            if (!enemyAlive) { endGame("🎉 축하합니다! 컴퓨터를 꺾고 승리하셨습니다!"); return true; }
+            if (!playerAlive) { endGame("💀 Computer Wins! You lose."); return true; }
+            if (!enemyAlive) { endGame("🎉 Congratulations! You defeated the Computer!"); return true; }
             return false;
         }
 
         function endGame(message) {
             gameState = "GAME_OVER";
-            statusText.innerHTML = `🏆 게임 종료: ${message}`;
-            buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">다시 시작하기</button>`;
+            statusText.innerHTML = `🏆 Game Over: ${message}`;
+            buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Restart Game</button>`;
         }
 
         function renderPieces() {
