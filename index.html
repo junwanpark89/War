@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
-        /* 1. 웹 화면 전체 레이아웃: 화면 축소 시 너무 작아지지 않도록 최소 크기 고정 */
+        /* 1. 웹 화면 전체 레이아웃: 화면 축소 시 너무 작아지지 않도록 최소 크기 설정 */
         html, body {
             margin: 0;
             padding: 0;
@@ -26,7 +26,11 @@
             align-items: center;
             padding: 2vh 2vw;
             box-sizing: border-box;
-            overflow: hidden !important; /* PC에서 스크롤바 생성 원천 차단 */
+            
+            /* [핵심 추가] 300% 확대 시 body 자체가 스크린 밖으로 삐져나가는 것을 물리적으로 완전 차단 */
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            overflow: hidden !important; /* PC에서 스크롤바 생성 원천 파괴 */
         }
 
         /* 2. 상단 상태 설명창: 300% 확대 시 자리를 양보하며 찌그러지도록 세팅 */
@@ -66,18 +70,20 @@
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* 3. 체스판: 기본 크기를 시원하게 대폭 키우고, 300% 줌에서는 화면에 맞춰 강제 수축하도록 설정 */
+        /* 3. 체스판: 평소에는 큼직하게 유지하되, 300% 줌 상태에서는 body 박스 안에서 무조건 100% 강제 압축 수축 */
         .chessboard {
             display: grid;
-            /* 기존 7vh에서 11.5vmin으로 대폭 상향하여 기본 화면에서 체스판이 큼직하게 보이도록 수정 */
+            /* 기본 화면에서 체스판이 큼직하게 보이도록 대폭 키운 상태 유지 */
             grid-template-columns: repeat(8, 11.5vmin); 
             grid-template-rows: repeat(8, 11.5vmin);
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            max-width: 95vw;
-            max-height: 68vh;
             
-            /* [핵심] 300% 확대 시 체스판 자체가 창 크기에 맞춰 정비례로 쪼그라들게 강제 유연성 부여 */
+            /* [중요 변경] 300% 확대 시 가로/세로 어느 쪽이든 스크린 화면 한계선을 0.1픽셀도 넘지 못하게 가둠 */
+            max-width: 100%;
+            max-height: 62vh;
+            
+            /* 줌이 커져서 공간이 부족해지면 체스판 자체가 정비례로 쪼그라들게 유연성 부여 */
             flex-shrink: 1; 
             margin: auto 0;
             
@@ -91,7 +97,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 6.5vmin; /* 체스판이 커진 만큼 이모지 해상도도 5.5에서 6.5로 선명하게 상향 */
+            font-size: 6.5vmin;
             user-select: none;
             cursor: pointer;
             position: relative;
@@ -145,12 +151,14 @@
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
         /* ====================================================
-           [모바일 전용 화면 자동 조절] 스마트폰 기기는 모바일 원본 규격 보호
+           [모바일 전용 화면 자동 조절] 스마트폰 기기는 모바일 원본 규격 보호 (안전 유지)
            ==================================================== */
         @media (max-width: 600px) {
             html, body {
                 min-width: 100vw !important;
                 min-height: 100vh !important;
+                max-width: 100vw !important;
+                max-height: 100vh !important;
                 overflow: hidden !important;
             }
             body { padding: 8px; }
