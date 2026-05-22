@@ -95,17 +95,7 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        .piece {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2;
-        }
-        .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
-        .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
-        /* 1. 아군(Player 1) 기물이 있는 cell 발밑에 검은색 원형 받침대 */
+        /* 1. 아군(Player 1) 기물이 있는 cell 발밑에 검은색 원형 받침대 (PC 전용) */
         .cell:has(.player-p)::after {
             content: "";
             position: absolute;
@@ -121,7 +111,7 @@
             z-index: 1;
         }
 
-        /* 2. 적군(AI) 기물이 있는 cell 발밑에 흰색 원형 받침대 */
+        /* 2. 적군(AI) 기물이 있는 cell 발밑에 흰색 원형 받침대 (PC 전용) */
         .cell:has(.player-e)::after {
             content: "";
             position: absolute;
@@ -137,12 +127,19 @@
             z-index: 1;
         }
 
-        /* 3. 기물 이모지가 발판 위 중앙에 자연스럽게 올라타도록 조절 */
         .piece {
-            z-index: 2; /* 받침대(z-index: 1)보다 위에 오도록 하여 그림 가림 방지 */
-            transform: translateY(-4px); /* 발판 위에 서 있는 느낌을 주기 위해 살짝 위로 이동 */
-            /* ====================================================
-           [모바일 전용 화면 자동 조절] PC 화면은 그대로 유지됩니다.
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+        .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
+        .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
+
+        /* ====================================================
+           [모바일 전용 화면 자동 조절] 핸드폰에서만 켜지는 특수 스위치
            ==================================================== */
         @media (max-width: 600px) {
             body {
@@ -150,37 +147,23 @@
                 box-sizing: border-box;
             }
 
-            /* 1. 상단 상태창 크기 축소 */
             #status-panel {
                 font-size: 14px;
                 padding: 10px 15px;
                 width: 95%;
             }
 
-            /* 2. 종족 선택 버튼들 크기 축소 */
             .choice-btn {
                 padding: 8px 12px;
                 font-size: 12px;
             }
 
-            /* 3. 핸드폰 화면에 꽉 차도록 체스판 전체 크기 재조정 */
-            .chessboard {
-                grid-template-columns: repeat(8, 11.5vw); /* 화면 너비 비율에 맞춤 */
-                grid-template-rows: repeat(8, 11.5vw);
-                border: 3px solid #1e222b;
-            }
-
-            /* 4. 칸 안의 이모지 글자 크기 축소 (깨짐 방지) */
-            .cell {
-                font-size: 24px;
-            }
-
-            /* 5. 이전에 만든 발밑 받침대 크기도 모바일에 맞게 축소 */
+            /* 핸드폰 화면용 발밑 받침대 크기 강제 축소 (삐져나감 방지) */
             .cell:has(.player-p)::after,
             .cell:has(.player-e)::after {
-                width: 8vmin;
-                height: 2.5vmin;
-                bottom: 1vmin;
+                width: 8vmin !important;
+                height: 2.5vmin !important;
+                bottom: 1vmin !important;
             }
         }
     </style>
