@@ -541,17 +541,17 @@
             const actualAvailableWidth = realMonitorWidth / browserZoomRatio;
             const actualAvailableHeight = realMonitorHeight / browserZoomRatio;
 
-            // 6. 300%로 입력되어 작아진 물리 공간 대비 가로/세로 최적 축소 비율을 구합니다.
+            // 6. 300%로 확대되어 좁아진 물리 공간 대비 가로/세로 최적 축소 비율을 구합니다.
             const scaleX = actualAvailableWidth / targetWidth;
             const scaleY = actualAvailableHeight / targetHeight;
             let finalScale = Math.min(scaleX, scaleY);
 
-            // 300% 줌인 상태에서 너무 화면이 커지지 않도록 줌 배율을 정밀하게 보정
+            // 300% 줌인 상태에서 화면이 깨지거나 튀어나가지 않도록 배율을 정밀 보정
             if (browserZoomRatio > 1.2) {
                 finalScale = finalScale / (browserZoomRatio * 0.4);
             }
 
-            // 안전 방어선: 화면 배율이 100%일 때는 원래 크기를 유지
+            // 안전 방어선: 화면 배율이 정상(100%)일 때는 원래 크기를 유지
             if (browserZoomRatio <= 1.2 && finalScale > 1) {
                 finalScale = 1;
             }
@@ -560,13 +560,14 @@
             wrapper.style.width = `${targetWidth}px`;
             wrapper.style.height = `${targetHeight}px`;
             wrapper.style.transform = `scale(${finalScale})`;
+            wrapper.style.transformOrigin = "center center";
         }
 
         // 창 크기가 요동치거나 브라우저 내부에서 줌 수치가 강제 입력될 때마다 실시간 연산 적용
         window.addEventListener('resize', antiZoomFit);
         window.addEventListener('load', antiZoomFit);
         // 브라우저 줌 이벤트까지 완벽 추적하기 위해 인터벌 감지 추가
-        setInterval(antiZoomFit, 300);
+        setInterval(antiZoomFit, 200);
         antiZoomFit();
     </script>
     </div>
