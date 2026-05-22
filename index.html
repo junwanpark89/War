@@ -6,43 +6,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
+        /* 1. 웹 브라우저 창 전체를 하나의 유연한 고정 박스로 세팅 */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* 강제로 스크롤바 생성을 원천 차단 */
+            background-color: #2f3542;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
         body {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh; /* min-height에서 height로 변경하여 강제로 화면 100% 고정 */
-            background-color: #2f3542;
-            margin: 0;
-            padding: 10px 0; /* 위아래 내부 여백을 줘서 모니터 화면 뚫고 나감 방지 */
-            font-family: Arial, sans-serif;
-            color: white;
-            overflow: hidden; /* PC 화면에서 스크롤바가 생기는 것을 원천 차단 */
+            padding: 2vmin; /* 화면 크기에 맞춰 여백도 유동적으로 조절 */
+            box-sizing: border-box;
         }
 
+        /* 2. 상단 상태창 구역: 화면이 세로로 좁아지면 패딩과 마진이 자동으로 얇아짐 */
         #status-panel {
-            margin-bottom: 15px; /* 여백을 20px에서 15px로 줄여 위아래 공간 확보 */
-            font-size: 18px;
-            font-weight: bold;
+            margin-bottom: 2vh;
+            font-size: clamp(14px, 2.5vmin, 18px); /* 글자 크기도 화면 크기에 맞춰 자동 조절 */
             background: #1e222b;
-            padding: 10px 30px; /* 위아래 패딩을 15px에서 10px로 축소 */
+            padding: 1.5vmin 4vmin;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
+            width: 90%;
             max-width: 600px;
+            flex-shrink: 0; /* 화면이 작아져도 상태창이 찌그러지지 않게 보호 */
         }
 
         .btn-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px;
-            margin-top: 8px;
+            gap: 1vmin;
+            margin-top: 1vh;
         }
 
         .choice-btn {
-            padding: 8px 15px; /* 버튼 위아래 두께를 10px에서 8px로 축소 */
-            font-size: 14px;
+            padding: 1vmin 2vmin;
+            font-size: clamp(12px, 2vmin, 14px);
             cursor: pointer;
             border: none;
             border-radius: 5px;
@@ -53,20 +62,24 @@
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
+        /* 3. 핵심: 체스판 전체 크기를 화면 가로/세로 중 남은 여백에 무조건 꽉 채우도록 계산 */
         .chessboard {
             display: grid;
-            /* 세로가 짧은 노트북 모니터에서도 스크롤이 생기지 않도록 체스판 최대 크기를 살짝 조절 */
-            grid-template-columns: repeat(8, 10vmin); 
-            grid-template-rows: repeat(8, 10vmin);
+            /* 가로세로 비율을 완벽히 유지하면서 브라우저 창 남은 공간에 꽉 차게 자동으로 늘어나고 줄어듦 */
+            grid-template-columns: repeat(8, min(11vw, 8.5vh)); 
+            grid-template-rows: repeat(8, min(11vw, 8.5vh));
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 100%;
+            max-height: 70vh; /* 상단바 공간을 제외하고 최대 70%까지만 차지하게 제한 */
         }
 
+        /* 4. 칸 안의 이모지 글자 크기도 칸 크기에 100% 정비례하게 연동 */
         .cell {
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 5.5vmin; /* 칸 크기가 줄어든 만큼 이모지 크기도 6vmin에서 5.5vmin으로 비율 피팅 */
+            font-size: min(6vw, 4.8vh);
             user-select: none;
             cursor: pointer;
             position: relative;
@@ -98,36 +111,30 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        /* 1. 아군(Player 1) 기물이 있는 cell 발밑에 검은색 원형 받침대 (PC 전용) */
-        .cell:has(.player-p)::after {
-            content: "";
-            position: absolute;
-            bottom: 5px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 44px; /* 칸 크기가 살짝 줄어든 만큼 발판 지름도 48px에서 44px로 최적화 */
-            height: 12px;
-            background: radial-gradient(ellipse at center, #3a3a3a 0%, #1a1a1a 100%);
-            border: 2px solid #0a0a0a;
-            border-radius: 50%;
-            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.5);
-            z-index: 1;
-        }
-
-        /* 2. 적군(AI) 기물이 있는 cell 발밑에 흰색 원형 받침대 (PC 전용) */
+        /* 5. 아군/적군 발밑 받침대도 칸 크기에 완벽하게 정비례하게 맞춤 */
+        .cell:has(.player-p)::after,
         .cell:has(.player-e)::after {
             content: "";
             position: absolute;
-            bottom: 5px;
+            bottom: 8%;
             left: 50%;
             transform: translateX(-50%);
-            width: 44px;
-            height: 12px;
+            width: 70%;  /* 고정 px 대신 %를 써서 칸이 작아지면 발판도 자동으로 얇아짐 */
+            height: 20%;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .cell:has(.player-p)::after {
+            background: radial-gradient(ellipse at center, #3a3a3a 0%, #1a1a1a 100%);
+            border: 2px solid #0a0a0a;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .cell:has(.player-e)::after {
             background: radial-gradient(ellipse at center, #ffffff 0%, #e0e0e0 100%);
             border: 2px solid #b5b5b5;
-            border-radius: 50%;
-            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4);
-            z-index: 1;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
         }
 
         .piece {
@@ -137,37 +144,28 @@
             justify-content: center;
             align-items: center;
             z-index: 2;
+            transform: translateY(-4%);
         }
         .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
         /* ====================================================
-           [모바일 전용 화면 자동 조절] 핸드폰에서만 켜지는 특수 스위치
+           [모바일 전용 화면 자동 조절] 핸드폰 전용 패딩 최적화
            ==================================================== */
         @media (max-width: 600px) {
             body {
                 padding: 10px;
-                box-sizing: border-box;
-                overflow: hidden;
             }
-
             #status-panel {
-                font-size: 14px;
-                padding: 10px 15px;
                 width: 95%;
             }
-
-            .choice-btn {
-                padding: 8px 12px;
-                font-size: 12px;
+            .chessboard {
+                grid-template-columns: repeat(8, 11vw); 
+                grid-template-rows: repeat(8, 11vw);
+                max-height: 60vh;
             }
-
-            /* 핸드폰 화면용 발밑 받침대 크기 강제 축소 (삐져나감 방지) */
-            .cell:has(.player-p)::after,
-            .cell:has(.player-e)::after {
-                width: 8vmin !important;
-                height: 2.5vmin !important;
-                bottom: 1vmin !important;
+            .cell {
+                font-size: 6vw;
             }
         }
     </style>
