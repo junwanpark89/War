@@ -6,58 +6,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
-        /* 1. 기본 브라우저 환경 세팅 */
+        /* 1. 웹 브라우저 창 전체를 스크롤바 없는 유연한 상자로 고정 */
         html, body {
             margin: 0;
             padding: 0;
             width: 100vw;
             height: 100vh;
+            overflow: hidden !important; /* PC 화면에서 스크롤바가 생기는 것을 강력 차단 */
             background-color: #2f3542;
             font-family: Arial, sans-serif;
             color: white;
-            overflow: hidden !important; /* 스크롤바 생성 절대 차단 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
-        /* 2. 핵심: 브라우저 줌의 압박을 역산해서 가두는 미니 모니터 상자 */
-        #game-wrapper {
+        body {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            width: 100%;
-            height: 100%;
+            padding: 2vmin; /* 창 크기에 맞춰 내부 여백도 부드럽게 조절 */
             box-sizing: border-box;
-            transform-origin: center center; /* 정중앙을 기준으로 축소되도록 설정 */
-            transition: transform 0.1s ease-out;
         }
 
+        /* 2. 상단 상태 설명창: 확대 배율에 맞춰 글자 크기와 마진이 유연하게 줄어듦 */
         #status-panel {
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: bold;
+            margin-bottom: 2vh;
+            font-size: clamp(14px, 2.2vmin, 18px); /* 배율에 따라 글씨가 자동으로 피팅됨 */
             background: #1e222b;
-            padding: 15px 30px;
+            padding: 1.2vh 3vw;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
             width: 90%;
-            max-width: 600px;
+            max-width: 550px;
+            flex-shrink: 3; /* 200% 줌 상태에서 체스판 공간 확보를 위해 먼저 압축됨 */
+            overflow: hidden;
         }
 
         .btn-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 1vmin;
+            margin-top: 1vh;
         }
 
         .choice-btn {
-            padding: 10px 15px;
-            font-size: 14px;
+            padding: 0.8vh 1.8vw;
+            font-size: clamp(12px, 1.8vmin, 14px);
             cursor: pointer;
             border: none;
             border-radius: 5px;
@@ -65,23 +60,34 @@
             color: white;
             font-weight: bold;
             transition: 0.2s;
+            flex-shrink: 1;
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* PC 화면 기준 체스판 크기 시원하게 고정 */
+        /* 3. 체스판 핵심: 200%까지는 스크린 한계선에 부딪혀서 강제로 쏙 압축 수축하도록 설정 */
         .chessboard {
             display: grid;
-            grid-template-columns: repeat(8, 65px);
-            grid-template-rows: repeat(8, 65px);
+            /* 가로세로 중 더 짧은 화면 축을 기준으로 정비례하여 칸 크기가 늘어나고 줄어듦 */
+            grid-template-columns: repeat(8, 10.5vmin); 
+            grid-template-rows: repeat(8, 10.5vmin);
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 95vw;
+            max-height: 65vh; /* 상단 설명바의 공간을 계산해 최대 높이를 단단히 통제 */
+            flex-shrink: 1; 
+            margin: auto 0;
+            
+            /* 축소 시 한없이 작아져서 개미처럼 보이지 않게 막아주는 방어선 */
+            min-width: 440px;
+            min-height: 440px;
         }
 
+        /* 4. 칸 안의 이모지 글자 크기도 체스판 크기에 맞춰 100% 자동 동기화 */
         .cell {
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 38px;
+            font-size: 6vmin;
             user-select: none;
             cursor: pointer;
             position: relative;
@@ -96,28 +102,30 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        /* 발밑 받침대 수치 안전하게 고정 */
+        /* 5. 발밑 받침대: % 비례 단위를 사용해 칸 크기가 커지거나 줄어들어도 완벽하게 정중앙 밀착 */
         .cell:has(.player-p)::after,
         .cell:has(.player-e)::after {
             content: "";
             position: absolute;
-            bottom: 6px;
+            bottom: 8%;
             left: 50%;
             transform: translateX(-50%);
-            width: 44px;
-            height: 12px;
+            width: 72%;
+            height: 18%;
             border-radius: 50%;
             z-index: 1;
         }
+
         .cell:has(.player-p)::after {
             background: radial-gradient(ellipse at center, #3a3a3a 0%, #1a1a1a 100%);
             border: 2px solid #0a0a0a;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
+
         .cell:has(.player-e)::after {
             background: radial-gradient(ellipse at center, #ffffff 0%, #e0e0e0 100%);
             border: 2px solid #b5b5b5;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
         }
 
         .piece {
@@ -127,22 +135,30 @@
             justify-content: center;
             align-items: center;
             z-index: 2;
-            transform: translateY(-4px);
+            transform: translateY(-4%);
         }
         .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
         /* ====================================================
-           [모바일 전용 화면 자동 조절] 스마트폰 기기는 줌 자동 해제 및 원래 크기 보호
+           [모바일 전용 화면 자동 조절] 스마트폰 기기는 터치 없이 기존 예쁜 크기 완벽 유지
            ==================================================== */
         @media (max-width: 600px) {
-            #game-wrapper { transform: scale(1) !important; width: 100vw; height: 100vh; }
-            body { padding: 10px; }
-            #status-panel { width: 95%; font-size: 14px; padding: 10px 15px; margin-bottom: 15px; }
-            .choice-btn { padding: 8px 12px; font-size: 12px; }
-            .chessboard { grid-template-columns: repeat(8, 11vw); grid-template-rows: repeat(8, 11vw); }
+            html, body {
+                min-width: 100vw !important;
+                min-height: 100vh !important;
+                overflow: hidden !important;
+            }
+            body { padding: 8px; }
+            #status-panel { width: 95%; max-height: 35vh; }
+            .chessboard {
+                grid-template-columns: repeat(8, 11vw); 
+                grid-template-rows: repeat(8, 11vw);
+                max-height: 55vh;
+                min-width: unset !important;
+                min-height: unset !important;
+            }
             .cell { font-size: 6vw; }
-            .cell:has(.player-p)::after, .cell:has(.player-e)::after { width: 75%; height: 18%; bottom: 4px; }
         }
     </style>
 </head>
