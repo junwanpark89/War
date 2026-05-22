@@ -6,15 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
-        /* 1. 웹 화면 전체 레이아웃 세팅: 화면 축소 시 너무 작아지지 않도록 최소 제한 크기 설정 */
+        /* 1. 웹 화면 전체 레이아웃: 화면 축소 시 너무 작아지지 않도록 최소 크기 고정 */
         html, body {
             margin: 0;
             padding: 0;
             width: 100vw;
             height: 100vh;
-            /* 줌을 엄청 줄여도(축소해도) 이 크기 이하로는 절대 안 작아지게 고정하는 방어선 */
-            min-width: 550px; 
-            min-height: 650px;
+            min-width: 600px; /* 멀리 축소해도 이 크기 이하로는 절대 안 작아짐 */
+            min-height: 700px;
             background-color: #2f3542;
             font-family: Arial, sans-serif;
             color: white;
@@ -25,23 +24,23 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 1vh 1vw;
+            padding: 2vh 2vw;
             box-sizing: border-box;
-            overflow: hidden !important; /* 어떤 줌 배율이든 PC에서 스크롤바 생성 원천 차단 */
+            overflow: hidden !important; /* PC에서 스크롤바 생성 원천 차단 */
         }
 
-        /* 2. 상단 상태 설명창: 화면 세로가 극단적으로 좁아지면 스스로 크기를 엄청나게 줄여서 버팀 */
+        /* 2. 상단 상태 설명창: 300% 확대 시 자리를 양보하며 찌그러지도록 세팅 */
         #status-panel {
-            margin-bottom: 1.5vh;
-            font-size: min(2.5vh, 16px);
+            margin-bottom: 2vh;
+            font-size: clamp(14px, 2.2vmin, 18px);
             background: #1e222b;
-            padding: 1.2vh 2vw;
+            padding: 1.5vh 3vw;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
-            width: 95%;
-            max-width: 500px;
-            flex-shrink: 2; /* 300% 확대 시 체스판을 위해 상태창이 먼저 극단적으로 찌러짐 */
+            width: 90%;
+            max-width: 550px;
+            flex-shrink: 3; /* 300% 줌 상태에서 체스판 공간 확보를 위해 가장 먼저 강하게 압축됨 */
             overflow: hidden;
         }
 
@@ -49,13 +48,13 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 0.5vh;
-            margin-top: 0.5vh;
+            gap: 1vmin;
+            margin-top: 1vh;
         }
 
         .choice-btn {
-            padding: 0.6vh 1.5vw;
-            font-size: min(2vh, 13px);
+            padding: 0.8vh 1.8vw;
+            font-size: clamp(12px, 1.8vmin, 14px);
             cursor: pointer;
             border: none;
             border-radius: 5px;
@@ -67,36 +66,35 @@
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* 3. 체스판 핵심: 확대 시 세로 화면을 안 뚫고 나가며, 반대로 축소 시 너무 작아지지 않게 가둠 */
+        /* 3. 체스판: 기본 크기를 시원하게 대폭 키우고, 300% 줌에서는 화면에 맞춰 강제 수축하도록 설정 */
         .chessboard {
             display: grid;
-            /* 기본적으로 화면 가로/세로 중 남은 여백에 정비례하여 칸 크기가 1픽셀 단위로 유연하게 수축 */
-            grid-template-columns: repeat(8, min(10vw, 7vh)); 
-            grid-template-rows: repeat(8, min(10vw, 7vh));
+            /* 기존 7vh에서 11.5vmin으로 대폭 상향하여 기본 화면에서 체스판이 큼직하게 보이도록 수정 */
+            grid-template-columns: repeat(8, 11.5vmin); 
+            grid-template-rows: repeat(8, 11.5vmin);
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            max-width: 100%;
-            max-height: 58vh; /* 300% 확대에서 상단바가 늘어날 자리를 고려해 최대 높이를 안전하게 통제 */
-            flex-shrink: 0; /* 체스판의 가로세로 정방향 비율이 무너지지 않게 보호 */
-            margin: auto 0; /* 남은 세로 중앙 정렬 */
+            max-width: 95vw;
+            max-height: 68vh;
             
-            /* [중요] 브라우저 줌을 엄청 낮춰서 축소해도 체스판이 개미처럼 작아지지 않게 막아주는 최소 크기 보강 */
-            min-width: 360px;
-            min-height: 360px;
+            /* [핵심] 300% 확대 시 체스판 자체가 창 크기에 맞춰 정비례로 쪼그라들게 강제 유연성 부여 */
+            flex-shrink: 1; 
+            margin: auto 0;
+            
+            /* 축소 시 너무 작아지지 않게 막아주는 최소 방어선 */
+            min-width: 440px;
+            min-height: 440px;
         }
 
-        /* 4. 칸 안의 이모지 글자 크기도 축소된 칸 크기에 정확히 매칭 */
+        /* 4. 칸 안의 이모지 글자 크기도 체스판 크기에 부드럽게 100% 동기화 */
         .cell {
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: min(5.5vw, 4vh);
+            font-size: 6.5vmin; /* 체스판이 커진 만큼 이모지 해상도도 5.5에서 6.5로 선명하게 상향 */
             user-select: none;
             cursor: pointer;
             position: relative;
-            
-            /* 축소 시 글씨가 너무 작아져서 안 보이는 현상 방지 최소 크기 */
-            min-size: 26px; 
         }
 
         .cell.highlight { box-shadow: inset 0 0 15px #2ed573; background-color: #2ed57344 !important; }
@@ -108,7 +106,7 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        /* 5. 발밑 받침대: 칸 크기 비율을 추적하므로 확대/축소 시 모두 완벽 밀착 보존 */
+        /* 5. 발밑 받침대: % 비례 단위를 유지하므로 완벽 밀착 보존 */
         .cell:has(.player-p)::after,
         .cell:has(.player-e)::after {
             content: "";
@@ -147,11 +145,10 @@
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
         /* ====================================================
-           [모바일 전용 화면 자동 조절] 스마트폰 환경은 안전하게 원본 유지
+           [모바일 전용 화면 자동 조절] 스마트폰 기기는 모바일 원본 규격 보호
            ==================================================== */
         @media (max-width: 600px) {
             html, body {
-                /* 모바일 기기에서는 최소 크기 제한을 풀어서 작은 화면에 완전히 밀착되도록 세팅 */
                 min-width: 100vw !important;
                 min-height: 100vh !important;
                 overflow: hidden !important;
