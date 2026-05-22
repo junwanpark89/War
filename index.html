@@ -6,31 +6,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
-        /* 1. 웹 브라우저 창 전체를 스크롤바 없는 유연한 상자로 고정 */
         html, body {
             margin: 0;
             padding: 0;
             width: 100vw;
             height: 100vh;
-            overflow: hidden !important; /* PC 화면에서 스크롤바가 생기는 것을 강력 차단 */
+            overflow: hidden !important;
             background-color: #2f3542;
             font-family: Arial, sans-serif;
             color: white;
-        }
-
-        body {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 2vmin; /* 창 크기에 맞춰 내부 여백도 부드럽게 조절 */
             box-sizing: border-box;
         }
 
-        /* 2. 상단 상태 설명창: 확대 배율에 맞춰 글자 크기와 마진이 유연하게 줄어듦 */
         #status-panel {
             margin-bottom: 2vh;
-            font-size: clamp(14px, 2.2vmin, 18px); /* 배율에 따라 글씨가 자동으로 피팅됨 */
+            font-size: clamp(14px, 2.2vmin, 18px);
             background: #1e222b;
             padding: 1.2vh 3vw;
             border-radius: 10px;
@@ -38,7 +32,7 @@
             text-align: center;
             width: 90%;
             max-width: 550px;
-            flex-shrink: 3; /* 200% 줌 상태에서 체스판 공간 확보를 위해 먼저 압축됨 */
+            flex-shrink: 3;
             overflow: hidden;
         }
 
@@ -64,25 +58,18 @@
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* 3. 체스판 핵심: 200%까지는 스크린 한계선에 부딪혀서 강제로 쏙 압축 수축하도록 설정 */
         .chessboard {
             display: grid;
-            /* 가로세로 중 더 짧은 화면 축을 기준으로 정비례하여 칸 크기가 늘어나고 줄어듦 */
-            grid-template-columns: repeat(8, 10.5vmin); 
-            grid-template-rows: repeat(8, 10.5vmin);
+            grid-template-columns: repeat(8, 10vmin); 
+            grid-template-rows: repeat(8, 10vmin);
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             max-width: 95vw;
-            max-height: 65vh; /* 상단 설명바의 공간을 계산해 최대 높이를 단단히 통제 */
+            max-height: 65vh;
             flex-shrink: 1; 
             margin: auto 0;
-            
-            /* 축소 시 한없이 작아져서 개미처럼 보이지 않게 막아주는 방어선 */
-            min-width: 440px;
-            min-height: 440px;
         }
 
-        /* 4. 칸 안의 이모지 글자 크기도 체스판 크기에 맞춰 100% 자동 동기화 */
         .cell {
             display: flex;
             justify-content: center;
@@ -102,7 +89,6 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        /* 5. 발밑 받침대: % 비례 단위를 사용해 칸 크기가 커지거나 줄어들어도 완벽하게 정중앙 밀착 */
         .cell:has(.player-p)::after,
         .cell:has(.player-e)::after {
             content: "";
@@ -140,24 +126,11 @@
         .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
-        /* ====================================================
-           [모바일 전용 화면 자동 조절] 스마트폰 기기는 터치 없이 기존 예쁜 크기 완벽 유지
-           ==================================================== */
         @media (max-width: 600px) {
-            html, body {
-                min-width: 100vw !important;
-                min-height: 100vh !important;
-                overflow: hidden !important;
-            }
+            html, body { min-width: 100vw !important; min-height: 100vh !important; overflow: hidden !important; }
             body { padding: 8px; }
             #status-panel { width: 95%; max-height: 35vh; }
-            .chessboard {
-                grid-template-columns: repeat(8, 11vw); 
-                grid-template-rows: repeat(8, 11vw);
-                max-height: 55vh;
-                min-width: unset !important;
-                min-height: unset !important;
-            }
+            .chessboard { grid-template-columns: repeat(8, 11vw); grid-template-rows: repeat(8, 11vw); max-height: 55vh; }
             .cell { font-size: 6vw; }
         }
     </style>
