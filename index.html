@@ -6,13 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
-        /* 1. 웹 브라우저 창 전체를 하나의 유연한 고정 박스로 세팅 */
+        /* 1. 웹 화면 전체 레이아웃 세팅: 화면 축소 시 너무 작아지지 않도록 최소 제한 크기 설정 */
         html, body {
             margin: 0;
             padding: 0;
             width: 100vw;
             height: 100vh;
-            overflow: hidden; /* 강제로 스크롤바 생성을 원천 차단 */
+            /* 줌을 엄청 줄여도(축소해도) 이 크기 이하로는 절대 안 작아지게 고정하는 방어선 */
+            min-width: 550px; 
+            min-height: 650px;
             background-color: #2f3542;
             font-family: Arial, sans-serif;
             color: white;
@@ -23,35 +25,37 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 2vmin; /* 화면 크기에 맞춰 여백도 유동적으로 조절 */
+            padding: 1vh 1vw;
             box-sizing: border-box;
+            overflow: hidden !important; /* 어떤 줌 배율이든 PC에서 스크롤바 생성 원천 차단 */
         }
 
-        /* 2. 상단 상태창 구역: 화면이 세로로 좁아지면 패딩과 마진이 자동으로 얇아짐 */
+        /* 2. 상단 상태 설명창: 화면 세로가 극단적으로 좁아지면 스스로 크기를 엄청나게 줄여서 버팀 */
         #status-panel {
-            margin-bottom: 2vh;
-            font-size: clamp(14px, 2.5vmin, 18px); /* 글자 크기도 화면 크기에 맞춰 자동 조절 */
+            margin-bottom: 1.5vh;
+            font-size: min(2.5vh, 16px);
             background: #1e222b;
-            padding: 1.5vmin 4vmin;
+            padding: 1.2vh 2vw;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
-            width: 90%;
-            max-width: 600px;
-            flex-shrink: 0; /* 화면이 작아져도 상태창이 찌그러지지 않게 보호 */
+            width: 95%;
+            max-width: 500px;
+            flex-shrink: 2; /* 300% 확대 시 체스판을 위해 상태창이 먼저 극단적으로 찌러짐 */
+            overflow: hidden;
         }
 
         .btn-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 1vmin;
-            margin-top: 1vh;
+            gap: 0.5vh;
+            margin-top: 0.5vh;
         }
 
         .choice-btn {
-            padding: 1vmin 2vmin;
-            font-size: clamp(12px, 2vmin, 14px);
+            padding: 0.6vh 1.5vw;
+            font-size: min(2vh, 13px);
             cursor: pointer;
             border: none;
             border-radius: 5px;
@@ -59,59 +63,52 @@
             color: white;
             font-weight: bold;
             transition: 0.2s;
+            flex-shrink: 1;
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* 3. 핵심: 체스판 전체 크기를 화면 가로/세로 중 남은 여백에 무조건 꽉 채우도록 계산 */
+        /* 3. 체스판 핵심: 확대 시 세로 화면을 안 뚫고 나가며, 반대로 축소 시 너무 작아지지 않게 가둠 */
         .chessboard {
             display: grid;
-            /* 가로세로 비율을 완벽히 유지하면서 브라우저 창 남은 공간에 꽉 차게 자동으로 늘어나고 줄어듦 */
-            grid-template-columns: repeat(8, min(11vw, 8.5vh)); 
-            grid-template-rows: repeat(8, min(11vw, 8.5vh));
+            /* 기본적으로 화면 가로/세로 중 남은 여백에 정비례하여 칸 크기가 1픽셀 단위로 유연하게 수축 */
+            grid-template-columns: repeat(8, min(10vw, 7vh)); 
+            grid-template-rows: repeat(8, min(10vw, 7vh));
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             max-width: 100%;
-            max-height: 70vh; /* 상단바 공간을 제외하고 최대 70%까지만 차지하게 제한 */
+            max-height: 58vh; /* 300% 확대에서 상단바가 늘어날 자리를 고려해 최대 높이를 안전하게 통제 */
+            flex-shrink: 0; /* 체스판의 가로세로 정방향 비율이 무너지지 않게 보호 */
+            margin: auto 0; /* 남은 세로 중앙 정렬 */
+            
+            /* [중요] 브라우저 줌을 엄청 낮춰서 축소해도 체스판이 개미처럼 작아지지 않게 막아주는 최소 크기 보강 */
+            min-width: 360px;
+            min-height: 360px;
         }
 
-        /* 4. 칸 안의 이모지 글자 크기도 칸 크기에 100% 정비례하게 연동 */
+        /* 4. 칸 안의 이모지 글자 크기도 축소된 칸 크기에 정확히 매칭 */
         .cell {
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: min(6vw, 4.8vh);
+            font-size: min(5.5vw, 4vh);
             user-select: none;
             cursor: pointer;
             position: relative;
+            
+            /* 축소 시 글씨가 너무 작아져서 안 보이는 현상 방지 최소 크기 */
+            min-size: 26px; 
         }
 
-        .cell.highlight {
-            box-shadow: inset 0 0 15px #2ed573;
-            background-color: #2ed57344 !important;
-        }
-        
-        .cell.move-valid {
-            box-shadow: inset 0 0 15px #ffa500;
-            background-color: #ffa50044 !important;
-        }
-        
-        .cell.enemy-move-valid {
-            box-shadow: inset 0 0 15px #ff4757;
-            background-color: #ff475744 !important;
-        }
-        
-        .cell.selected {
-            background-color: #70a1ff !important;
-        }
-        
-        .cell.enemy-selected {
-            background-color: #ff475777 !important;
-        }
+        .cell.highlight { box-shadow: inset 0 0 15px #2ed573; background-color: #2ed57344 !important; }
+        .cell.move-valid { box-shadow: inset 0 0 15px #ffa500; background-color: #ffa50044 !important; }
+        .cell.enemy-move-valid { box-shadow: inset 0 0 15px #ff4757; background-color: #ff475744 !important; }
+        .cell.selected { background-color: #70a1ff !important; }
+        .cell.enemy-selected { background-color: #ff475777 !important; }
 
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        /* 5. 아군/적군 발밑 받침대도 칸 크기에 완벽하게 정비례하게 맞춤 */
+        /* 5. 발밑 받침대: 칸 크기 비율을 추적하므로 확대/축소 시 모두 완벽 밀착 보존 */
         .cell:has(.player-p)::after,
         .cell:has(.player-e)::after {
             content: "";
@@ -119,8 +116,8 @@
             bottom: 8%;
             left: 50%;
             transform: translateX(-50%);
-            width: 70%;  /* 고정 px 대신 %를 써서 칸이 작아지면 발판도 자동으로 얇아짐 */
-            height: 20%;
+            width: 72%;
+            height: 18%;
             border-radius: 50%;
             z-index: 1;
         }
@@ -128,13 +125,13 @@
         .cell:has(.player-p)::after {
             background: radial-gradient(ellipse at center, #3a3a3a 0%, #1a1a1a 100%);
             border: 2px solid #0a0a0a;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
 
         .cell:has(.player-e)::after {
             background: radial-gradient(ellipse at center, #ffffff 0%, #e0e0e0 100%);
             border: 2px solid #b5b5b5;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
         }
 
         .piece {
@@ -150,23 +147,25 @@
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
         /* ====================================================
-           [모바일 전용 화면 자동 조절] 핸드폰 전용 패딩 최적화
+           [모바일 전용 화면 자동 조절] 스마트폰 환경은 안전하게 원본 유지
            ==================================================== */
         @media (max-width: 600px) {
-            body {
-                padding: 10px;
+            html, body {
+                /* 모바일 기기에서는 최소 크기 제한을 풀어서 작은 화면에 완전히 밀착되도록 세팅 */
+                min-width: 100vw !important;
+                min-height: 100vh !important;
+                overflow: hidden !important;
             }
-            #status-panel {
-                width: 95%;
-            }
+            body { padding: 8px; }
+            #status-panel { width: 95%; max-height: 35vh; }
             .chessboard {
                 grid-template-columns: repeat(8, 11vw); 
                 grid-template-rows: repeat(8, 11vw);
-                max-height: 60vh;
+                max-height: 55vh;
+                min-width: unset !important;
+                min-height: unset !important;
             }
-            .cell {
-                font-size: 6vw;
-            }
+            .cell { font-size: 6vw; }
         }
     </style>
 </head>
