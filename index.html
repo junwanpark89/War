@@ -11,19 +11,21 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh; /* min-height에서 height로 변경하여 강제로 화면 100% 고정 */
             background-color: #2f3542;
             margin: 0;
+            padding: 10px 0; /* 위아래 내부 여백을 줘서 모니터 화면 뚫고 나감 방지 */
             font-family: Arial, sans-serif;
             color: white;
+            overflow: hidden; /* PC 화면에서 스크롤바가 생기는 것을 원천 차단 */
         }
 
         #status-panel {
-            margin-bottom: 20px;
+            margin-bottom: 15px; /* 여백을 20px에서 15px로 줄여 위아래 공간 확보 */
             font-size: 18px;
             font-weight: bold;
             background: #1e222b;
-            padding: 15px 30px;
+            padding: 10px 30px; /* 위아래 패딩을 15px에서 10px로 축소 */
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
@@ -35,11 +37,11 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 10px;
-            margin-top: 10px;
+            margin-top: 8px;
         }
 
         .choice-btn {
-            padding: 10px 15px;
+            padding: 8px 15px; /* 버튼 위아래 두께를 10px에서 8px로 축소 */
             font-size: 14px;
             cursor: pointer;
             border: none;
@@ -53,8 +55,9 @@
 
         .chessboard {
             display: grid;
-            grid-template-columns: repeat(8, 11vmin);
-            grid-template-rows: repeat(8, 11vmin);
+            /* 세로가 짧은 노트북 모니터에서도 스크롤이 생기지 않도록 체스판 최대 크기를 살짝 조절 */
+            grid-template-columns: repeat(8, 10vmin); 
+            grid-template-rows: repeat(8, 10vmin);
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
@@ -63,7 +66,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 6vmin;
+            font-size: 5.5vmin; /* 칸 크기가 줄어든 만큼 이모지 크기도 6vmin에서 5.5vmin으로 비율 피팅 */
             user-select: none;
             cursor: pointer;
             position: relative;
@@ -102,8 +105,8 @@
             bottom: 5px;
             left: 50%;
             transform: translateX(-50%);
-            width: 48px;
-            height: 14px;
+            width: 44px; /* 칸 크기가 살짝 줄어든 만큼 발판 지름도 48px에서 44px로 최적화 */
+            height: 12px;
             background: radial-gradient(ellipse at center, #3a3a3a 0%, #1a1a1a 100%);
             border: 2px solid #0a0a0a;
             border-radius: 50%;
@@ -118,8 +121,8 @@
             bottom: 5px;
             left: 50%;
             transform: translateX(-50%);
-            width: 48px;
-            height: 14px;
+            width: 44px;
+            height: 12px;
             background: radial-gradient(ellipse at center, #ffffff 0%, #e0e0e0 100%);
             border: 2px solid #b5b5b5;
             border-radius: 50%;
@@ -145,6 +148,7 @@
             body {
                 padding: 10px;
                 box-sizing: border-box;
+                overflow: hidden;
             }
 
             #status-panel {
