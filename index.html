@@ -147,7 +147,7 @@
     </style>
 </head>
 <body>
-
+<div id="game-wrapper">
     <div id="status-panel">
         <div id="status-text">To start the game, choose your faction!</div>
         <div id="button-zone" class="btn-container">
@@ -508,6 +508,38 @@
         }
 
         createBoard();
+        // ====================================================
+        // [브라우저 강제 확대(줌인) 무력화 자바스크립트 시스템]
+        // ====================================================
+        function antiZoomFit() {
+            // 모바일 화면(가로 600px 이하)에서는 작동하지 않도록 방어
+            if (window.innerWidth <= 600) return;
+
+            const wrapper = document.getElementById('game-wrapper');
+            
+            // 현재 사용자의 브라우저 창 실제 크기와 물리적 화면 비율을 계산합니다.
+            const expectedWidth = 600;  // 게임이 차지할 최소 안전 가로폭
+            const expectedHeight = 750; // 게임이 차지할 최소 안전 세로높이
+            
+            const scaleX = window.innerWidth / expectedWidth;
+            const scaleY = window.innerHeight / expectedHeight;
+            
+            // 창 크기나 줌 배율에 맞게 화면을 역산하여 강제 스케일링을 먹입니다.
+            let scale = Math.min(scaleX, scaleY);
+            
+            // 사용자가 화면을 극단적으로 키웠을 때(줌인)만 축소 스위치를 켜고, 일반 화면에선 100% 비율 고정
+            if (scale > 1) {
+                scale = 1;
+            }
+            
+            wrapper.style.transform = `scale(${scale})`;
+        }
+
+        // 창 크기가 바뀌거나 사용자가 Ctrl+플러스로 줌인을 할 때마다 실시간으로 감지하여 연산 실행
+        window.addEventListener('resize', antiZoomFit);
+        window.addEventListener('load', antiZoomFit);
+        antiZoomFit(); // 게임 시작 시 즉시 실행
     </script>
+    </div>
 </body>
 </html>
