@@ -509,36 +509,50 @@
 
         createBoard();
         // ====================================================
-        // [브라우저 강제 확대(줌인) 무력화 자바스크립트 시스템]
+        // [물리 해상도 기반 무한 줌 차단 자바스크립트 시스템]
         // ====================================================
         function antiZoomFit() {
-            // 모바일 화면(가로 600px 이하)에서는 작동하지 않도록 방어
-            if (window.innerWidth <= 600) return;
+            // 모바일 화면(가로 600px 이하)에서는 축소 로직이 작동하지 않도록 방어
+            if (window.innerWidth <= 600) {
+                const wrapper = document.getElementById('game-wrapper');
+                if (wrapper) wrapper.style.transform = 'none';
+                return;
+            }
 
             const wrapper = document.getElementById('game-wrapper');
+            if (!wrapper) return;
             
-            // 현재 사용자의 브라우저 창 실제 크기와 물리적 화면 비율을 계산합니다.
-            const expectedWidth = 600;  // 게임이 차지할 최소 안전 가로폭
-            const expectedHeight = 750; // 게임이 차지할 최소 안전 세로높이
+            // 브라우저가 왜곡하는 크기 대신, 사용자의 실제 모니터 화면(Screen)의 물리적 크기를 가져옵니다.
+            const monitorWidth = window.screen.width;
+            const monitorHeight = window.screen.height;
             
-            const scaleX = window.innerWidth / expectedWidth;
-            const scaleY = window.innerHeight / expectedHeight;
+            // 줌인이 극단적으로 커질수록 실제 브라우저의 inner 창 크기는 100px, 200px 단위로 아주 작아집니다.
+            // 줌 배율(Zoom Ratio)을 정밀하게 역산해냅니다.
+            const zoomRatioX = monitorWidth / window.innerWidth;
+            const zoomRatioY = monitorHeight / window.innerHeight;
+            const currentZoom = Math.max(zoomRatioX, zoomRatioY);
             
-            // 창 크기나 줌 배율에 맞게 화면을 역산하여 강제 스케일링을 먹입니다.
-            let scale = Math.min(scaleX, scaleY);
+            // 기본 설계된 게임의 기준 해상도 스케일 계산
+            const baseScaleX = window.innerWidth / 640;
+            const baseScaleY = window.innerHeight / 780;
+            let baseScale = Math.min(baseScaleX, baseScaleY);
             
-            // 사용자가 화면을 극단적으로 키웠을 때(줌인)만 축소 스위치를 켜고, 일반 화면에선 100% 비율 고정
-            if (scale > 1) {
-                scale = 1;
+            if (baseScale > 1) baseScale = 1;
+
+            // [핵심] 사용자가 Ctrl+플러스로 줌인을 한 배율만큼 정확하게 정비례하여 화면 크기를 스스로 나눕니다.
+            // 브라우저가 300% 확대하면, 이 스크립트가 강제로 화면을 1/3로 쪼그라트려 절대 모니터를 탈출하지 못하게 가둡니다.
+            if (currentZoom > 1) {
+                const antiZoomScale = baseScale / currentZoom;
+                wrapper.style.transform = `scale(${antiZoomScale})`;
+            } else {
+                wrapper.style.transform = `scale(${baseScale})`;
             }
-            
-            wrapper.style.transform = `scale(${scale})`;
         }
 
-        // 창 크기가 바뀌거나 사용자가 Ctrl+플러스로 줌인을 할 때마다 실시간으로 감지하여 연산 실행
+        // 창 크기가 바뀌거나 사용자가 무한대로 줌인을 조절할 때마다 실시간 감지하여 연산 실행
         window.addEventListener('resize', antiZoomFit);
         window.addEventListener('load', antiZoomFit);
-        antiZoomFit(); // 게임 시작 시 즉시 실행
+        antiZoomFit(); // 페이지 로드 즉시 무한 줌 차단 박제
     </script>
     </div>
 </body>
