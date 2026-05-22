@@ -6,33 +6,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
+        /* 1. 화면 전체를 스크롤바가 절대로 생길 수 없는 100% 압축 상자로 고정 */
         html, body {
             margin: 0;
             padding: 0;
             width: 100vw;
             height: 100vh;
-            overflow: hidden !important;
+            overflow: hidden !important; /* 화면이 잘리더라도 스크롤바 생성을 강제로 완전 파괴 */
             background-color: #2f3542;
             font-family: Arial, sans-serif;
             color: white;
+        }
+
+        body {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            padding: 1.5vh 1vw; /* 위아래 내부 여백을 좁혀서 체스판이 밑으로 내려가는 것을 방어 */
             box-sizing: border-box;
         }
 
+        /* 2. 상단 설명창: 세로 두께와 여백을 최소한으로 압축하여 체스판 공간을 확보 */
         #status-panel {
-            margin-bottom: 2vh;
-            font-size: clamp(14px, 2.2vmin, 18px);
+            margin-bottom: 1.5vh; /* 아래 여백을 대폭 축소 */
+            font-size: clamp(13px, 2vmin, 16px); /* 글자 크기를 살짝 컴팩트하게 피팅 */
             background: #1e222b;
-            padding: 1.2vh 3vw;
+            padding: 1vh 25px; /* 위아래 두께를 얇게 줄임 */
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
             width: 90%;
-            max-width: 550px;
-            flex-shrink: 3;
+            max-width: 500px;
+            flex-shrink: 3; /* 세로가 좁아지면 설명창이 먼저 바짝 찌그러져서 체스판을 보호함 */
             overflow: hidden;
         }
 
@@ -40,13 +46,13 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 1vmin;
-            margin-top: 1vh;
+            gap: 8px;
+            margin-top: 8px;
         }
 
         .choice-btn {
-            padding: 0.8vh 1.8vw;
-            font-size: clamp(12px, 1.8vmin, 14px);
+            padding: 6px 12px; /* 버튼의 위아래 두께도 날씬하게 압축 */
+            font-size: clamp(11px, 1.6vmin, 13px);
             cursor: pointer;
             border: none;
             border-radius: 5px;
@@ -58,23 +64,25 @@
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
+        /* 3. 체스판 핵심: 칸 크기 비율을 10vmin에서 7.5vmin으로 낮춰 밑바닥이 절대 밖으로 못 나가게 박제 */
         .chessboard {
             display: grid;
-            grid-template-columns: repeat(8, 10vmin); 
-            grid-template-rows: repeat(8, 10vmin);
+            grid-template-columns: repeat(8, 7.5vmin); 
+            grid-template-rows: repeat(8, 7.5vmin);
             border: 4px solid #1e222b;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             max-width: 95vw;
-            max-height: 65vh;
+            max-height: 62vh; /* 최대 허용 높이를 안전선 이하로 가두어 아래쪽 잘림을 원천 차단 */
             flex-shrink: 1; 
             margin: auto 0;
         }
 
+        /* 4. 칸 안의 이모지 글자 크기도 축소된 체스판 비율에 맞춰 정밀 연동 */
         .cell {
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 6vmin;
+            font-size: 4.8vmin; /* 칸이 줄어든 비율만큼 글씨 크기도 6vmin에서 4.8vmin으로 자동 다운스케일 */
             user-select: none;
             cursor: pointer;
             position: relative;
@@ -89,6 +97,7 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
+        /* 5. 발밑 받침대: 퍼센트 비례 단위를 쓰므로 체스판 크기와 완벽 밀착 보존 */
         .cell:has(.player-p)::after,
         .cell:has(.player-e)::after {
             content: "";
@@ -126,6 +135,9 @@
         .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
+        /* ====================================================
+           [모바일 전용 화면 자동 조절] 핸드폰 화면은 손상 없이 완벽하게 기존 크기 유지
+           ==================================================== */
         @media (max-width: 600px) {
             html, body { min-width: 100vw !important; min-height: 100vh !important; overflow: hidden !important; }
             body { padding: 8px; }
