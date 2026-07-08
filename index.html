@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
-        /* 1. 전체 브라우저 화면 설정: 스크롤바 완전 차단 */
+        /* 1. 전체 브라우저 화면 설정 */
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden !important; 
             background-color: #2f3542;
             font-family: Arial, sans-serif;
             color: white;
@@ -24,9 +23,10 @@
             align-items: center;
             justify-content: center;
             padding: 2vh 2vw;
+            overflow: auto; /* 화면 짤림 방지 */
         }
 
-        /* 2. 상단 설명창: 체스판 가로폭과 일치 */
+        /* 2. 상단 설명창 */
         #status-panel {
             margin-bottom: 2vh;
             font-size: clamp(13px, 2vmin, 16px);
@@ -66,11 +66,11 @@
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* 3. 체스판 크기 고정 박제 */
+        /* 3. 체스판 크기 고정 */
         .chessboard {
             display: grid;
-            grid-template-columns: repeat(8, 7.5vmin); 
-            grid-template-rows: repeat(8, 7.5vmin);
+            grid-template-columns: repeat(8, 1fr); 
+            grid-template-rows: repeat(8, 1fr);
             border: 4px solid #1e222b;
             background-color: #1e222b;
             gap: 0 !important;
@@ -78,13 +78,13 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             
             width: calc(60vmin + 8px);
+            height: calc(60vmin + 8px);
             max-width: 95vw;
-            max-height: 62vh;
-            flex-shrink: 1; 
+            max-height: 95vw;
             box-sizing: border-box;
         }
 
-        /* 4. 칸 안의 이모지 글자 크기 연동 */
+        /* 4. 칸 내부 스타일 및 크기 유지 보장 */
         .cell {
             display: flex;
             justify-content: center;
@@ -93,6 +93,7 @@
             user-select: none;
             cursor: pointer;
             position: relative;
+            aspect-ratio: 1 / 1; /* 빈 칸일 때도 정사각형 유지 */
         }
 
         .cell.highlight { box-shadow: inset 0 0 15px #2ed573; background-color: #2ed57344 !important; }
@@ -142,12 +143,11 @@
         .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
-        /* 모바일 전용 대응 화면 */
+        /* 모바일 대응 */
         @media (max-width: 600px) {
-            html, body { min-width: 100vw !important; min-height: 100vh !important; overflow: hidden !important; }
             body { padding: 8px; }
-            #status-panel { width: 95% !important; max-width: 95% !important; max-height: 35vh; margin-bottom: 15px; }
-            .chessboard { width: 88vw !important; max-width: 88vw !important; grid-template-columns: repeat(8, 11vw); grid-template-rows: repeat(8, 11vw); max-height: 55vh; }
+            #status-panel { width: 95% !important; max-width: 95% !important; margin-bottom: 15px; }
+            .chessboard { width: 90vw !important; height: 90vw !important; max-width: 90vw !important; max-height: 90vw !important; }
             .cell { font-size: 6vw; }
         }
     </style>
@@ -208,7 +208,7 @@
         let selectedCell = null; 
         let validMoves = [];     
 
-        // [추가] 3회 동형 반복 확인용 배열
+        // [3회 동형 반복 확인용 시스템 배열]
         let boardHistory = [];
 
         function createBoard() {
@@ -276,6 +276,7 @@
         function handleCellClick(row, col) {
             if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
                 if (row === 6 || row === 7) {
+                    if (boardState[row][col]) return; // 이미 기물이 있으면 무시
                     boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
                     aiPlaceEnemyPiece(); 
                     renderPieces();
@@ -294,7 +295,7 @@
                             gameState = "GAMEPLAY";
                             turn = "player";
                             statusText.innerHTML = "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
-                            // [추가] 배치 완료 시점의 첫 판 저장
+                            // 배치가 모두 끝난 후 최초 게임 판 기록
                             recordBoardState();
                         }
                     }
@@ -316,7 +317,7 @@
                     selectedCell = null;
                     renderPieces();
 
-                    // [추가] 플레이어 이동 후 동형 반복 체크
+                    // 유저 이동 후 동일 판이 발생했는지 감지
                     if (checkRepetitionRule('player')) return;
                     if (checkGameOver()) return;
 
@@ -463,7 +464,7 @@
 
                 renderPieces();
 
-                // [추가] AI 이동 후 동형 반복 체크
+                // 컴퓨터 이동 후 동일 판 발생 감지
                 if (checkRepetitionRule('enemy')) return;
                 if (checkGameOver()) return;
 
@@ -474,7 +475,7 @@
             }
         }
 
-        // [추가] 동형 반복 상태 기록 및 체크 함수
+        // [동형 반복 연산 시스템 함수]
         function recordBoardState() {
             let snapshot = "";
             for (let r = 0; r < 8; r++) {
@@ -513,7 +514,7 @@
             let enemyAlive = false;
 
             for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) { // 기존 오타 r < 8 을 c < 8 로 수정완료
+                for (let c = 0; c < 8; c++) {
                     if (boardState[r][c]) {
                         if (boardState[r][c].side === 'player') playerAlive = true;
                         if (boardState[r][c].side === 'enemy') enemyAlive = true;
@@ -550,6 +551,7 @@
             }
         }
 
+        // 초기 보드판 레이아웃 렌더링 실행
         createBoard();
     </script>
 </div>
