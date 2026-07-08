@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
@@ -12,7 +11,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden !important; /* PC 화면에서 지저분한 스크롤바 원천 차단 */
+            overflow: hidden !important; 
             background-color: #2f3542;
             font-family: Arial, sans-serif;
             color: white;
@@ -27,7 +26,7 @@
             padding: 2vh 2vw;
         }
 
-        /* 2. 상단 설명창: [핵심] 고정 max-width를 완전히 없애고 체스판 가로폭과 자석처럼 강제 일치 */
+        /* 2. 상단 설명창: 체스판 가로폭과 일치 */
         #status-panel {
             margin-bottom: 2vh;
             font-size: clamp(13px, 2vmin, 16px);
@@ -37,9 +36,8 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
             
-            /* 체스판의 전체 너비인 8칸(7.5vmin * 8 = 60vmin)과 테두리 두께를 정확하게 100% 일치시켜 수평축 고정 */
             width: calc(60vmin + 8px); 
-            max-width: 95vw; /* 화면 밖으로 나가는 것 방어 */
+            max-width: 95vw; 
             
             flex-shrink: 3;
             overflow: hidden;
@@ -68,7 +66,7 @@
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* 3. 체스판 핵심: 175%, 200% 줌인 시에도 상단바와 한 몸으로 수평축 칼정렬 박제 */
+        /* 3. 체스판 크기 고정 박제 */
         .chessboard {
             display: grid;
             grid-template-columns: repeat(8, 7.5vmin); 
@@ -79,7 +77,6 @@
             padding: 0 !important;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             
-            /* 가로세로 비율이 늘 유지되도록 너비를 고정 계산 */
             width: calc(60vmin + 8px);
             max-width: 95vw;
             max-height: 62vh;
@@ -107,7 +104,7 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        /* 5. 발밑 받침대: 비율 단위를 유지하므로 완벽 밀착 보존 */
+        /* 5. 발밑 받침대 스타일 */
         .cell:has(.player-p)::after,
         .cell:has(.player-e)::after {
             content: "";
@@ -145,9 +142,7 @@
         .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
-        /* ====================================================
-           [모바일 전용 화면 자동 조절] 스마트폰 기기는 모바일 황금비율 원본 완벽 보호
-           ==================================================== */
+        /* 모바일 전용 대응 화면 */
         @media (max-width: 600px) {
             html, body { min-width: 100vw !important; min-height: 100vh !important; overflow: hidden !important; }
             body { padding: 8px; }
@@ -198,7 +193,7 @@
                 4: [{name:"Gryphon Rider", emoji:"🦅"}, {name:"Royal Archer", emoji:"🏹"}, {name:"Crossbowman", emoji:"🎯"}],
                 3: [{name:"Priest", emoji:"⛪"}, {name:"Shield Bearer", emoji:"🧱"}, {name:"Crusader", emoji:"✝️"}],
                 2: [{name:"Heavy Knight", emoji:"🐴"}, {name:"Royal Assassin", emoji:"🗡️"}, {name:"Siege Cannon", emoji:"💣"}],
-                1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander", emoji:"🛡️"}]
+                1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander",🛡️"}]
             }
         };
 
@@ -212,6 +207,9 @@
         let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
         let selectedCell = null; 
         let validMoves = [];     
+
+        // [3회 동형 반복 검사용 변수]
+        let boardHistory = [];
 
         function createBoard() {
             board.innerHTML = "";
@@ -254,13 +252,9 @@
         function chooseDraftPiece(piece) {
             playerSelectedPiece = { ...piece, tier: currentDraftTier };
             
-            if (currentDraftTier === 6) {
-                remainingPlacements = 8;
-            } else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) {
-                remainingPlacements = 2; 
-            } else {
-                remainingPlacements = 1;
-            }
+            if (currentDraftTier === 6) remainingPlacements = 8;
+            else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) remainingPlacements = 2; 
+            else remainingPlacements = 1;
 
             buttonZone.innerHTML = "";
             statusText.innerHTML = `Deploy ${piece.emoji} onto your territory (bottom 2 rows). (Remaining: ${remainingPlacements})`;
@@ -283,10 +277,9 @@
             if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
                 if ((row === 6 || row === 7) && !boardState[row][col]) {
                     boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
+                    aiPlaceEnemyPiece(); 
                     renderPieces();
                     remainingPlacements--;
-
-                    aiPlaceEnemyPiece(); 
 
                     if (remainingPlacements > 0) {
                         statusText.innerHTML = `Deploy the remaining copies of ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
@@ -301,6 +294,8 @@
                             gameState = "GAMEPLAY";
                             turn = "player";
                             statusText.innerHTML = "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
+                            // 배치가 완전히 끝난 시점의 첫 판 상태 기록
+                            recordBoardState();
                         }
                     }
                 }
@@ -321,6 +316,8 @@
                     selectedCell = null;
                     renderPieces();
 
+                    // 플레이어가 움직인 후 동형 반복 체크
+                    if (checkRepetitionRule('player')) return;
                     if (checkGameOver()) return;
 
                     turn = "enemy";
@@ -367,7 +364,6 @@
             if (emptySpots.length > 0) {
                 const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
                 boardState[spot.r][spot.c] = { ...enemySelectedPiece, side: 'enemy' };
-                renderPieces();
             }
         }
 
@@ -392,7 +388,7 @@
             if (tier === 4) maxRange = 3;
             if (tier === 3) maxRange = 4;
             if (tier === 2) maxRange = 5;
-            if (tier === 1) maxRange = 8; 
+            if (tier === 1) maxRange = 7; 
 
             directions.forEach(dir => {
                 for (let i = 1; i <= maxRange; i++) {
@@ -467,6 +463,8 @@
 
                 renderPieces();
 
+                // AI가 움직인 후 동형 반복 체크
+                if (checkRepetitionRule('enemy')) return;
                 if (checkGameOver()) return;
 
                 turn = "player";
@@ -474,6 +472,40 @@
             } else {
                 endGame("Player Wins!");
             }
+        }
+
+        // [3회 동형 반복 룰 추가 시스템 기능 코드]
+        function recordBoardState() {
+            let stateString = "";
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const p = boardState[r][c];
+                    if (p) {
+                        stateString += `${r}${c}:${p.side}:${p.name}|`;
+                    }
+                }
+            }
+            boardHistory.push(stateString);
+            return stateString;
+        }
+
+        function checkRepetitionRule(mover) {
+            const currentStr = recordBoardState();
+            let matchCount = 0;
+            for (let i = 0; i < boardHistory.length; i++) {
+                if (boardHistory[i] === currentStr) {
+                    matchCount++;
+                }
+            }
+            if (matchCount >= 3) {
+                if (mover === 'player') {
+                    endGame("Computer Wins! (You lost by Threefold Repetition Rule)");
+                } else {
+                    endGame("Victory is yours! (Computer lost by Threefold Repetition Rule)");
+                }
+                return true;
+            }
+            return false;
         }
 
         function checkGameOver() {
@@ -520,6 +552,6 @@
 
         createBoard();
     </script>
-    </div>
+</div>
 </body>
 </html>
