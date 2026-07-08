@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ultimate Faction Wars - AI Battle</title>
     <style>
         /* 1. 전체 브라우저 화면 설정: 스크롤바 완전 차단 */
@@ -193,7 +194,7 @@
                 4: [{name:"Gryphon Rider", emoji:"🦅"}, {name:"Royal Archer", emoji:"🏹"}, {name:"Crossbowman", emoji:"🎯"}],
                 3: [{name:"Priest", emoji:"⛪"}, {name:"Shield Bearer", emoji:"🧱"}, {name:"Crusader", emoji:"✝️"}],
                 2: [{name:"Heavy Knight", emoji:"🐴"}, {name:"Royal Assassin", emoji:"🗡️"}, {name:"Siege Cannon", emoji:"💣"}],
-                1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander",🛡️"}]
+                1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander", emoji:"🛡️"}]
             }
         };
 
@@ -208,7 +209,7 @@
         let selectedCell = null; 
         let validMoves = [];     
 
-        // [3회 동형 반복 검사용 변수]
+        // [3회 동형 반복 확인용 기록 변수]
         let boardHistory = [];
 
         function createBoard() {
@@ -275,7 +276,7 @@
 
         function handleCellClick(row, col) {
             if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
-                if ((row === 6 || row === 7) && !boardState[row][col]) {
+                if (row === 6 || row === 7) {
                     boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
                     aiPlaceEnemyPiece(); 
                     renderPieces();
@@ -294,7 +295,7 @@
                             gameState = "GAMEPLAY";
                             turn = "player";
                             statusText.innerHTML = "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
-                            // 배치가 완전히 끝난 시점의 첫 판 상태 기록
+                            // 게임플레이 돌입 첫 시점 상태 저장
                             recordBoardState();
                         }
                     }
@@ -316,7 +317,7 @@
                     selectedCell = null;
                     renderPieces();
 
-                    // 플레이어가 움직인 후 동형 반복 체크
+                    // 유저 이동 후 동형 반복 판정 실행
                     if (checkRepetitionRule('player')) return;
                     if (checkGameOver()) return;
 
@@ -388,7 +389,7 @@
             if (tier === 4) maxRange = 3;
             if (tier === 3) maxRange = 4;
             if (tier === 2) maxRange = 5;
-            if (tier === 1) maxRange = 7; 
+            if (tier === 1) maxRange = 8; 
 
             directions.forEach(dir => {
                 for (let i = 1; i <= maxRange; i++) {
@@ -463,7 +464,7 @@
 
                 renderPieces();
 
-                // AI가 움직인 후 동형 반복 체크
+                // 컴퓨터 이동 후 동형 반복 판정 실행
                 if (checkRepetitionRule('enemy')) return;
                 if (checkGameOver()) return;
 
@@ -474,34 +475,34 @@
             }
         }
 
-        // [3회 동형 반복 룰 추가 시스템 기능 코드]
+        // [동형 반복 감지용 유틸리티 함수]
         function recordBoardState() {
-            let stateString = "";
+            let snapshot = "";
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
                     const p = boardState[r][c];
                     if (p) {
-                        stateString += `${r}${c}:${p.side}:${p.name}|`;
+                        snapshot += `${r},${c}:${p.side}:${p.name}/`;
                     }
                 }
             }
-            boardHistory.push(stateString);
-            return stateString;
+            boardHistory.push(snapshot);
+            return snapshot;
         }
 
         function checkRepetitionRule(mover) {
             const currentStr = recordBoardState();
-            let matchCount = 0;
+            let count = 0;
             for (let i = 0; i < boardHistory.length; i++) {
                 if (boardHistory[i] === currentStr) {
-                    matchCount++;
+                    count++;
                 }
             }
-            if (matchCount >= 3) {
+            if (count >= 3) {
                 if (mover === 'player') {
-                    endGame("Computer Wins! (You lost by Threefold Repetition Rule)");
+                    endGame("Computer Wins! (You lose by Threefold Repetition)");
                 } else {
-                    endGame("Victory is yours! (Computer lost by Threefold Repetition Rule)");
+                    endGame("Victory is yours! (Computer loses by Threefold Repetition)");
                 }
                 return true;
             }
