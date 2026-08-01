@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI Battle</title>
+    <!-- PVP 실시간 네트워크 통신을 위한 PeerJS 라이브러리 추가 -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         /* 1. 전체 브라우저 화면 설정 */
         html, body {
@@ -25,6 +27,46 @@
             padding: 2vh 2vw;
             overflow: auto; /* 화면 짤림 방지 */
         }
+
+        /* 메인 모드 선택 페이지 스타일 */
+        #main-menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #1e222b;
+            padding: 40px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 90vw;
+            width: 360px;
+        }
+
+        #main-menu h1 {
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 24px;
+            color: #ffffff;
+        }
+
+        .menu-btn {
+            width: 100%;
+            padding: 15px;
+            margin: 8px 0;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-pvp { background-color: #2ed573; }
+        .btn-pvp:hover { background-color: #26af5f; }
+        .btn-pvc { background-color: #ff4757; }
+        .btn-pvc:hover { background-color: #ff6b81; }
 
         /* 2. 상단 설명창 */
         #status-panel {
@@ -153,7 +195,16 @@
     </style>
 </head>
 <body>
-<div id="game-wrapper">
+
+<!-- 1. 새로 추가된 메인 페이지 선택창 -->
+<div id="main-menu">
+    <h1>Ultimate Faction Wars</h1>
+    <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Player vs Player</button>
+    <button class="menu-btn btn-pvc" onclick="startPVCMode()">🤖 Player vs Computer</button>
+</div>
+
+<!-- 2. 기존 게임 영역 (초기 상태 숨김) -->
+<div id="game-wrapper" style="display: none;">
     <div id="status-panel">
         <div id="status-text">To start the game, choose your faction!</div>
         <div id="button-zone" class="btn-container">
@@ -164,396 +215,571 @@
     </div>
 
     <div class="chessboard" id="board"></div>
+</div>
 
-    <script>
-        const board = document.getElementById('board');
-        const statusText = document.getElementById('status-text');
-        const buttonZone = document.getElementById('button-zone');
+<script>
+    const board = document.getElementById('board');
+    const statusText = document.getElementById('status-text');
+    const buttonZone = document.getElementById('button-zone');
 
-        const PIECE_DATABASE = {
-            Dragon: {
-                6: [{name:"Fire Spirit", emoji:"💥"}, {name:"Magma Slime", emoji:"🍮"}, {name:"Baby Wyvern", emoji:"🦅"}],
-                5: [{name:"Whelp", emoji:"🦎"}, {name:"Imp Fighter", emoji:"😈"}, {name:"Gargoyle Scout", emoji:"🦇"}],
-                4: [{name:"Lava Chariot", emoji:"🚗"}, {name:"Venom Scorpion", emoji:"🦂"}, {name:"Flame Viper", emoji:"🐍"}],
-                3: [{name:"Magma Giant", emoji:"☄️"}, {name:"Mecha Dragon", emoji:"🤖"}, {name:"Acid Wyvern", emoji:"🧪"}],
-                2: [{name:"Flame Lord", emoji:"🔥"}, {name:"Storm Drake", emoji:"⚡"}, {name:"Gargoyle Elder", emoji:"🌪️"}],
-                1: [{name:"Ruination Dragon", emoji:"🌋"}, {name:"Ancient Drake", emoji:"🐉"}, {name:"Abyss Dragon", emoji:"🌌"}]
-            },
-            Elf: {
-                6: [{name:"Spirit Butterfly", emoji:"🦋"}, {name:"Elf Militia", emoji:"🏹"}, {name:"Pixie", emoji:"✨"}],
-                5: [{name:"Druid", emoji:"🌿"}, {name:"Elf Swordsman", emoji:"⚔️"}, {name:"Treant", emoji:"🪵"}],
-                4: [{name:"Leopard Tamer", emoji:"🐆"}, {name:"Owl Scout", emoji:"🦉"}, {name:"Fairy Rogue", emoji:"🧚"}],
-                3: [{name:"Wind Dancer", emoji:"🍃"}, {name:"Illusionist", emoji:"🔮"}, {name:"Centaur Archer", emoji:"🏹"}],
-                2: [{name:"Moonbow Archer", emoji:"🏹"}, {name:"Gryphon Knight", emoji:"🦅"}, {name:"Unicorn Guardian", emoji:"🦄"}],
-                1: [{name:"Elf Queen", emoji:"🧝‍♀️"}, {name:"Worldtree Keeper", emoji:"🌳"}, {name:"Elemental King", emoji:"🧚‍♂️"}]
-            },
-            Human: {
-                6: [{name:"Footman", emoji:"💂"}, {name:"Peasant", emoji:"🧑‍🌾"}, {name:"Recruit", emoji:"🎖️"}],
-                5: [{name:"Apprentice Mage", emoji:"🌟"}, {name:"Spearman", emoji:"🔱"}, {name:"Spy", emoji:"🕵️‍♂️"}],
-                4: [{name:"Gryphon Rider", emoji:"🦅"}, {name:"Royal Archer", emoji:"🏹"}, {name:"Crossbowman", emoji:"🎯"}],
-                3: [{name:"Priest", emoji:"⛪"}, {name:"Shield Bearer", emoji:"🧱"}, {name:"Crusader", emoji:"✝️"}],
-                2: [{name:"Heavy Knight", emoji:"🐴"}, {name:"Royal Assassin", emoji:"🗡️"}, {name:"Siege Cannon", emoji:"💣"}],
-                1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander", emoji:"🛡️"}]
+    // 모드 관련 변수
+    let gameMode = "PVC"; // "PVC" 또는 "PVP"
+    let peer = null, conn = null;
+    let isHost = false;
+    let pvpMyTurn = false;
+
+    const PIECE_DATABASE = {
+        Dragon: {
+            6: [{name:"Fire Spirit", emoji:"💥"}, {name:"Magma Slime", emoji:"🍮"}, {name:"Baby Wyvern", emoji:"🦅"}],
+            5: [{name:"Whelp", emoji:"🦎"}, {name:"Imp Fighter", emoji:"😈"}, {name:"Gargoyle Scout", emoji:"🦇"}],
+            4: [{name:"Lava Chariot", emoji:"🚗"}, {name:"Venom Scorpion", emoji:"🦂"}, {name:"Flame Viper", emoji:"🐍"}],
+            3: [{name:"Magma Giant", emoji:"☄️"}, {name:"Mecha Dragon", emoji:"🤖"}, {name:"Acid Wyvern", emoji:"🧪"}],
+            2: [{name:"Flame Lord", emoji:"🔥"}, {name:"Storm Drake", emoji:"⚡"}, {name:"Gargoyle Elder", emoji:"🌪️"}],
+            1: [{name:"Ruination Dragon", emoji:"🌋"}, {name:"Ancient Drake", emoji:"🐉"}, {name:"Abyss Dragon", emoji:"🌌"}]
+        },
+        Elf: {
+            6: [{name:"Spirit Butterfly", emoji:"🦋"}, {name:"Elf Militia", emoji:"🏹"}, {name:"Pixie", emoji:"✨"}],
+            5: [{name:"Druid", emoji:"🌿"}, {name:"Elf Swordsman", emoji:"⚔️"}, {name:"Treant", emoji:"🪵"}],
+            4: [{name:"Leopard Tamer", emoji:"🐆"}, {name:"Owl Scout", emoji:"🦉"}, {name:"Fairy Rogue", emoji:"🧚"}],
+            3: [{name:"Wind Dancer", emoji:"🍃"}, {name:"Illusionist", emoji:"🔮"}, {name:"Centaur Archer", emoji:"🏹"}],
+            2: [{name:"Moonbow Archer", emoji:"🏹"}, {name:"Gryphon Knight", emoji:"🦅"}, {name:"Unicorn Guardian", emoji:"🦄"}],
+            1: [{name:"Elf Queen", emoji:"🧝‍♀️"}, {name:"Worldtree Keeper", emoji:"🌳"}, {name:"Elemental King", emoji:"🧚‍♂️"}]
+        },
+        Human: {
+            6: [{name:"Footman", emoji:"💂"}, {name:"Peasant", emoji:"🧑‍🌾"}, {name:"Recruit", emoji:"🎖️"}],
+            5: [{name:"Apprentice Mage", emoji:"🌟"}, {name:"Spearman", emoji:"🔱"}, {name:"Spy", emoji:"🕵️‍♂️"}],
+            4: [{name:"Gryphon Rider", emoji:"🦅"}, {name:"Royal Archer", emoji:"🏹"}, {name:"Crossbowman", emoji:"🎯"}],
+            3: [{name:"Priest", emoji:"⛪"}, {name:"Shield Bearer", emoji:"🧱"}, {name:"Crusader", emoji:"✝️"}],
+            2: [{name:"Heavy Knight", emoji:"🐴"}, {name:"Royal Assassin", emoji:"🗡️"}, {name:"Siege Cannon", emoji:"💣"}],
+            1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander", emoji:"🛡️"}]
+        }
+    };
+
+    let gameState = "CHOOSE_RACE"; 
+    let playerRace = "", enemyRace = "";
+    let currentDraftTier = 6; 
+    let playerSelectedPiece = null, enemySelectedPiece = null;
+    let remainingPlacements = 0;
+    let turn = "player"; 
+
+    let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
+    let selectedCell = null; 
+    let validMoves = [];     
+
+    // [3회 동형 반복 확인용 시스템 배열]
+    let boardHistory = [];
+
+    // --- 메인 메뉴 컨트롤 및 PVP 매치메이킹 연동 ---
+    function startPVCMode() {
+        gameMode = "PVC";
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('game-wrapper').style.display = 'block';
+        createBoard();
+    }
+
+    function startPVPMode() {
+        gameMode = "PVP";
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('game-wrapper').style.display = 'block';
+        createBoard();
+
+        statusText.innerHTML = "🔍 Searching for an online opponent...";
+        buttonZone.innerHTML = "";
+
+        const roomId = "ufw_match_public_room_v1";
+        peer = new Peer();
+
+        peer.on('open', () => {
+            const connAttempt = peer.connect(roomId);
+            
+            const timer = setTimeout(() => {
+                peer.destroy();
+                peer = new Peer(roomId);
+                
+                peer.on('open', () => {
+                    isHost = true;
+                    statusText.innerHTML = "⌛ Waiting for another player to join...";
+                });
+
+                peer.on('connection', (c) => {
+                    conn = c;
+                    setupConnection();
+                });
+
+                peer.on('error', () => {
+                    statusText.innerHTML = "Connection error. Please try again.";
+                });
+            }, 2000);
+
+            connAttempt.on('open', () => {
+                clearTimeout(timer);
+                conn = connAttempt;
+                isHost = false;
+                setupConnection();
+            });
+        });
+    }
+
+    function setupConnection() {
+        statusText.innerHTML = "🎮 Opponent Found! Choose your faction!";
+        buttonZone.innerHTML = `
+            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
+            <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
+            <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
+        `;
+
+        conn.on('data', (data) => {
+            handleNetworkData(data);
+        });
+
+        conn.on('close', () => {
+            alert("Opponent disconnected.");
+            location.reload();
+        });
+    }
+
+    function sendNetworkData(data) {
+        if (conn && conn.open) {
+            conn.send(data);
+        }
+    }
+
+    function handleNetworkData(data) {
+        if (data.type === 'SELECT_RACE') {
+            enemyRace = data.race;
+            checkPvpRaceSelected();
+        } else if (data.type === 'PLACE_PIECE') {
+            // 상대방이 배치한 좌표를 대칭(7-r, 7-c)으로 내 화면의 상단에 적용
+            const mirrorR = 7 - data.r;
+            const mirrorC = 7 - data.c;
+            boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
+            renderPieces();
+            
+            if (data.finishedDraft) {
+                pvpCheckStartGame();
             }
-        };
+        } else if (data.type === 'MOVE') {
+            const fromR = 7 - data.from.r;
+            const fromC = 7 - data.from.c;
+            const toR = 7 - data.to.r;
+            const toC = 7 - data.to.c;
 
-        let gameState = "CHOOSE_RACE"; 
-        let playerRace = "", enemyRace = "";
-        let currentDraftTier = 6; 
-        let playerSelectedPiece = null, enemySelectedPiece = null;
-        let remainingPlacements = 0;
-        let turn = "player"; 
+            boardState[toR][toC] = boardState[fromR][fromC];
+            boardState[fromR][fromC] = null;
+            renderPieces();
 
-        let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
-        let selectedCell = null; 
-        let validMoves = [];     
+            checkRepetitionRule('enemy');
+            if (checkGameOver()) return;
 
-        // [3회 동형 반복 확인용 시스템 배열]
-        let boardHistory = [];
+            turn = "player";
+            statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+        }
+    }
 
-        function createBoard() {
-            board.innerHTML = "";
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    const cell = document.createElement('div');
-                    cell.className = `cell ${(row + col) % 2 === 0 ? 'white' : 'black'}`;
-                    cell.dataset.row = row; cell.dataset.col = col;
-                    cell.addEventListener('click', () => handleCellClick(row, col));
-                    board.appendChild(cell);
-                }
+    let pvpEnemyRaceSelected = false;
+    function checkPvpRaceSelected() {
+        pvpEnemyRaceSelected = true;
+        if (playerRace && pvpEnemyRaceSelected) {
+            gameState = "DRAFT_LOOP";
+            startTierDraft();
+        }
+    }
+
+    function pvpCheckStartGame() {
+        if (currentDraftTier === 1 && remainingPlacements === 0) {
+            gameState = "GAMEPLAY";
+            turn = isHost ? "player" : "enemy";
+            if (turn === "player") {
+                statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
+            } else {
+                statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's turn...";
+            }
+            recordBoardState();
+        }
+    }
+
+    // --- 기존 게임 함수 영역 ---
+
+    function createBoard() {
+        board.innerHTML = "";
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const cell = document.createElement('div');
+                cell.className = `cell ${(row + col) % 2 === 0 ? 'white' : 'black'}`;
+                cell.dataset.row = row; cell.dataset.col = col;
+                cell.addEventListener('click', () => handleCellClick(row, col));
+                board.appendChild(cell);
             }
         }
+    }
 
-        function selectRace(race) {
-            playerRace = race;
+    function selectRace(race) {
+        playerRace = race;
+        if (gameMode === "PVC") {
             const races = ['Dragon', 'Elf', 'Human'];
             enemyRace = races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
             gameState = "DRAFT_LOOP";
             startTierDraft();
-        }
-
-        function startTierDraft() {
-            let totalToPlace = 1;
-            if (currentDraftTier === 6) totalToPlace = 8;
-            else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) totalToPlace = 2;
-
-            statusText.innerHTML = `[You: ${playerRace} vs Enemy: ${enemyRace}]<br>Choose a Tier ${currentDraftTier} piece. (Deploy ${totalToPlace} copies)`;
+        } else {
+            sendNetworkData({ type: 'SELECT_RACE', race: race });
+            statusText.innerHTML = `You chose ${race}. Waiting for opponent to select faction...`;
             buttonZone.innerHTML = "";
-
-            PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
-                const btn = document.createElement('button');
-                btn.className = "choice-btn";
-                btn.innerHTML = `${piece.emoji} ${piece.name}`;
-                btn.onclick = () => chooseDraftPiece(piece);
-                buttonZone.appendChild(btn);
-            });
+            if (pvpEnemyRaceSelected) {
+                gameState = "DRAFT_LOOP";
+                startTierDraft();
+            }
         }
+    }
 
-        function chooseDraftPiece(piece) {
-            playerSelectedPiece = { ...piece, tier: currentDraftTier };
-            
-            if (currentDraftTier === 6) remainingPlacements = 8;
-            else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) remainingPlacements = 2; 
-            else remainingPlacements = 1;
+    function startTierDraft() {
+        let totalToPlace = 1;
+        if (currentDraftTier === 6) totalToPlace = 8;
+        else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) totalToPlace = 2;
 
-            buttonZone.innerHTML = "";
-            statusText.innerHTML = `Deploy ${piece.emoji} onto your territory (bottom 2 rows). (Remaining: ${remainingPlacements})`;
+        statusText.innerHTML = `[You: ${playerRace} vs Enemy: ${enemyRace}]<br>Choose a Tier ${currentDraftTier} piece. (Deploy ${totalToPlace} copies)`;
+        buttonZone.innerHTML = "";
 
+        PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
+            const btn = document.createElement('button');
+            btn.className = "choice-btn";
+            btn.innerHTML = `${piece.emoji} ${piece.name}`;
+            btn.onclick = () => chooseDraftPiece(piece);
+            buttonZone.appendChild(btn);
+        });
+    }
+
+    function chooseDraftPiece(piece) {
+        playerSelectedPiece = { ...piece, tier: currentDraftTier };
+        
+        if (currentDraftTier === 6) remainingPlacements = 8;
+        else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) remainingPlacements = 2; 
+        else remainingPlacements = 1;
+
+        buttonZone.innerHTML = "";
+        statusText.innerHTML = `Deploy ${piece.emoji} onto your territory (bottom 2 rows). (Remaining: ${remainingPlacements})`;
+
+        if (gameMode === "PVC") {
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
             enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
-
-            highlightDraftZone(true);
         }
 
-        function highlightDraftZone(on) {
-            document.querySelectorAll('.cell').forEach(cell => {
-                const r = parseInt(cell.dataset.row);
-                if (on && (r === 6 || r === 7)) cell.classList.add('highlight');
-                else cell.classList.remove('highlight');
-            });
-        }
+        highlightDraftZone(true);
+    }
 
-        function handleCellClick(row, col) {
-            if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
-                if (row === 6 || row === 7) {
-                    if (boardState[row][col]) return; // 이미 기물이 있으면 무시
-                    boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
+    function highlightDraftZone(on) {
+        document.querySelectorAll('.cell').forEach(cell => {
+            const r = parseInt(cell.dataset.row);
+            if (on && (r === 6 || r === 7)) cell.classList.add('highlight');
+            else cell.classList.remove('highlight');
+        });
+    }
+
+    function handleCellClick(row, col) {
+        if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
+            if (row === 6 || row === 7) {
+                if (boardState[row][col]) return; // 이미 기물이 있으면 무시
+                boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
+                
+                if (gameMode === "PVC") {
                     aiPlaceEnemyPiece(); 
-                    renderPieces();
-                    remainingPlacements--;
+                } else {
+                    const isFinished = (remainingPlacements - 1 === 0) && (currentDraftTier === 1);
+                    sendNetworkData({
+                        type: 'PLACE_PIECE',
+                        r: row,
+                        c: col,
+                        piece: playerSelectedPiece,
+                        finishedDraft: isFinished
+                    });
+                }
 
-                    if (remainingPlacements > 0) {
-                        statusText.innerHTML = `Deploy the remaining copies of ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
+                renderPieces();
+                remainingPlacements--;
+
+                if (remainingPlacements > 0) {
+                    statusText.innerHTML = `Deploy the remaining copies of ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
+                } else {
+                    highlightDraftZone(false);
+                    playerSelectedPiece = null;
+                    
+                    if (currentDraftTier > 1) {
+                        currentDraftTier--; 
+                        startTierDraft();
                     } else {
-                        highlightDraftZone(false);
-                        playerSelectedPiece = null;
-                        
-                        if (currentDraftTier > 1) {
-                            currentDraftTier--; 
-                            startTierDraft();
-                        } else {
+                        if (gameMode === "PVC") {
                             gameState = "GAMEPLAY";
                             turn = "player";
                             statusText.innerHTML = "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
-                            // 배치가 모두 끝난 후 최초 게임 판 기록
                             recordBoardState();
+                        } else {
+                            statusText.innerHTML = "Waiting for opponent to finish deploying units...";
+                            pvpCheckStartGame();
                         }
                     }
                 }
-            } 
-            else if (gameState === "GAMEPLAY") {
-                if (turn !== "player") return; 
-
-                const clickedCellData = boardState[row][col];
-                const activePiece = selectedCell ? boardState[selectedCell.r][selectedCell.c] : null;
-
-                if (activePiece && activePiece.side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
-                    const from = selectedCell;
-                    
-                    boardState[row][col] = boardState[from.r][from.c];
-                    boardState[from.r][from.c] = null;
-                    
-                    clearHighlights();
-                    selectedCell = null;
-                    renderPieces();
-
-                    // 유저 이동 후 동일 판이 발생했는지 감지
-                    if (checkRepetitionRule('player')) return;
-                    if (checkGameOver()) return;
-
-                    turn = "enemy";
-                    statusText.innerHTML = "🤖 Computer is thinking...";
-                    setTimeout(enemyTurn, 1000);
-                    return; 
-                } 
-
-                if (clickedCellData) {
-                    if (clickedCellData.side === 'player') {
-                        clearHighlights();
-                        selectedCell = { r: row, c: col };
-                        document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('selected');
-                        
-                        validMoves = calculateMoves(row, col, clickedCellData);
-                        validMoves.forEach(m => {
-                            document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
-                        });
-                    } 
-                    else if (clickedCellData.side === 'enemy') {
-                        clearHighlights();
-                        selectedCell = { r: row, c: col }; 
-                        document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
-                        
-                        validMoves = calculateMoves(row, col, clickedCellData);
-                        validMoves.forEach(m => {
-                            document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid');
-                        });
-                    }
-                } else {
-                    clearHighlights();
-                    selectedCell = null;
-                }
             }
-        }
+        } 
+        else if (gameState === "GAMEPLAY") {
+            if (turn !== "player") return; 
 
-        function aiPlaceEnemyPiece() {
-            let emptySpots = [];
-            for (let r = 0; r <= 1; r++) {
-                for (let c = 0; c < 8; c++) {
-                    if (!boardState[r][c]) emptySpots.push({r, c});
-                }
-            }
-            if (emptySpots.length > 0) {
-                const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-                boardState[spot.r][spot.c] = { ...enemySelectedPiece, side: 'enemy' };
-            }
-        }
+            const clickedCellData = boardState[row][col];
+            const activePiece = selectedCell ? boardState[selectedCell.r][selectedCell.c] : null;
 
-        function clearHighlights() {
-            document.querySelectorAll('.cell').forEach(c => {
-                c.classList.remove('selected', 'enemy-selected', 'move-valid', 'enemy-move-valid');
-            });
-        }
-
-        function calculateMoves(row, col, piece) {
-            const moves = [];
-            const side = piece.side;
-            const tier = piece.tier;
-
-            const directions = [
-                {r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}, 
-                {r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1}  
-            ];
-
-            let maxRange = 1;
-            if (tier === 5) maxRange = 2;
-            if (tier === 4) maxRange = 3;
-            if (tier === 3) maxRange = 4;
-            if (tier === 2) maxRange = 5;
-            if (tier === 1) maxRange = 8; 
-
-            directions.forEach(dir => {
-                for (let i = 1; i <= maxRange; i++) {
-                    const nr = row + dir.r * i;
-                    const nc = col + dir.c * i;
-
-                    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break; 
-
-                    const target = boardState[nr][nc];
-                    if (!target) {
-                        moves.push({ r: nr, c: nc });
-                    } else {
-                        if (target.side !== side) {
-                            moves.push({ r: nr, c: nc });
-                        }
-                        break; 
-                    }
-                }
-            });
-
-            if (tier <= 3) {
-                const knightOffsets = [
-                    {r:-2, c:-1}, {r:-2, c:1}, {r:-1, c:-2}, {r:-1, c:2},
-                    {r:1, c:-2}, {r:1, c:2}, {r:2, c:-1}, {r:2, c:1}
-                ];
-                knightOffsets.forEach(off => {
-                    const nr = row + off.r;
-                    const nc = col + off.c;
-                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                        const target = boardState[nr][nc];
-                        if (!target || target.side !== side) {
-                            moves.push({r: nr, c: nc});
-                        }
-                    }
-                });
-            }
-
-            return moves;
-        }
-
-        function enemyTurn() {
-            if (gameState !== "GAMEPLAY") return;
-
-            let allEnemyMoves = [];
-
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const piece = boardState[r][c];
-                    if (piece && piece.side === 'enemy') {
-                        const moves = calculateMoves(r, c, piece);
-                        moves.forEach(m => {
-                            let score = 1;
-                            const target = boardState[m.r][m.c];
-                            if (target && target.side === 'player') {
-                                score = 10 + (6 - target.tier); 
-                            }
-                            allEnemyMoves.push({ from: {r, c}, to: m, score: score });
-                        });
-                    }
-                }
-            }
-
-            if (allEnemyMoves.length > 0) {
-                allEnemyMoves.sort((a, b) => b.score - a.score);
-                const bestMove = allEnemyMoves[0];
-
-                const from = bestMove.from;
-                const to = bestMove.to;
-
-                boardState[to.r][to.c] = boardState[from.r][from.c];
+            if (activePiece && activePiece.side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
+                const from = selectedCell;
+                
+                boardState[row][col] = boardState[from.r][from.c];
                 boardState[from.r][from.c] = null;
-
+                
+                clearHighlights();
+                selectedCell = null;
                 renderPieces();
 
-                // 컴퓨터 이동 후 동일 판 발생 감지
-                if (checkRepetitionRule('enemy')) return;
+                if (gameMode === "PVP") {
+                    sendNetworkData({
+                        type: 'MOVE',
+                        from: from,
+                        to: { r: row, c: col }
+                    });
+                }
+
+                // 유저 이동 후 동일 판이 발생했는지 감지
+                if (checkRepetitionRule('player')) return;
                 if (checkGameOver()) return;
 
-                turn = "player";
-                statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
-            } else {
-                endGame("Player Wins!");
-            }
-        }
-
-        // [동형 반복 연산 시스템 함수]
-        function recordBoardState() {
-            let snapshot = "";
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const p = boardState[r][c];
-                    if (p) {
-                        snapshot += `${r},${c}:${p.side}:${p.name}/`;
-                    }
-                }
-            }
-            boardHistory.push(snapshot);
-            return snapshot;
-        }
-
-        function checkRepetitionRule(mover) {
-            const currentStr = recordBoardState();
-            let count = 0;
-            for (let i = 0; i < boardHistory.length; i++) {
-                if (boardHistory[i] === currentStr) {
-                    count++;
-                }
-            }
-            if (count >= 3) {
-                if (mover === 'player') {
-                    endGame("Computer Wins! (You lost by Threefold Repetition Rule)");
+                turn = "enemy";
+                if (gameMode === "PVC") {
+                    statusText.innerHTML = "🤖 Computer is thinking...";
+                    setTimeout(enemyTurn, 1000);
                 } else {
-                    endGame("Victory is yours! (Computer lost by Threefold Repetition Rule)");
+                    statusText.innerHTML = " Waiting for opponent's turn...";
                 }
-                return true;
+                return; 
+            } 
+
+            if (clickedCellData) {
+                if (clickedCellData.side === 'player') {
+                    clearHighlights();
+                    selectedCell = { r: row, c: col };
+                    document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('selected');
+                    
+                    validMoves = calculateMoves(row, col, clickedCellData);
+                    validMoves.forEach(m => {
+                        document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
+                    });
+                } 
+                else if (clickedCellData.side === 'enemy') {
+                    clearHighlights();
+                    selectedCell = { r: row, c: col }; 
+                    document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
+                    
+                    validMoves = calculateMoves(row, col, clickedCellData);
+                    validMoves.forEach(m => {
+                        document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid');
+                    });
+                }
+            } else {
+                clearHighlights();
+                selectedCell = null;
             }
-            return false;
         }
+    }
 
-        function checkGameOver() {
-            let playerAlive = false;
-            let enemyAlive = false;
+    function aiPlaceEnemyPiece() {
+        let emptySpots = [];
+        for (let r = 0; r <= 1; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (!boardState[r][c]) emptySpots.push({r, c});
+            }
+        }
+        if (emptySpots.length > 0) {
+            const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+            boardState[spot.r][spot.c] = { ...enemySelectedPiece, side: 'enemy' };
+        }
+    }
 
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    if (boardState[r][c]) {
-                        if (boardState[r][c].side === 'player') playerAlive = true;
-                        if (boardState[r][c].side === 'enemy') enemyAlive = true;
+    function clearHighlights() {
+        document.querySelectorAll('.cell').forEach(c => {
+            c.classList.remove('selected', 'enemy-selected', 'move-valid', 'enemy-move-valid');
+        });
+    }
+
+    function calculateMoves(row, col, piece) {
+        const moves = [];
+        const side = piece.side;
+        const tier = piece.tier;
+
+        const directions = [
+            {r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}, 
+            {r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1} 
+        ];
+
+        let maxRange = 1;
+        if (tier === 5) maxRange = 2;
+        if (tier === 4) maxRange = 3;
+        if (tier === 3) maxRange = 4;
+        if (tier === 2) maxRange = 5;
+        if (tier === 1) maxRange = 8; 
+
+        directions.forEach(dir => {
+            for (let i = 1; i <= maxRange; i++) {
+                const nr = row + dir.r * i;
+                const nc = col + dir.c * i;
+
+                if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break; 
+
+                const target = boardState[nr][nc];
+                if (!target) {
+                    moves.push({ r: nr, c: nc });
+                } else {
+                    if (target.side !== side) {
+                        moves.push({ r: nr, c: nc });
+                    }
+                    break; 
+                }
+            }
+        });
+
+        if (tier <= 3) {
+            const knightOffsets = [
+                {r:-2, c:-1}, {r:-2, c:1}, {r:-1, c:-2}, {r:-1, c:2},
+                {r:1, c:-2}, {r:1, c:2}, {r:2, c:-1}, {r:2, c:1}
+            ];
+            knightOffsets.forEach(off => {
+                const nr = row + off.r;
+                const nc = col + off.c;
+                if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                    const target = boardState[nr][nc];
+                    if (!target || target.side !== side) {
+                        moves.push({r: nr, c: nc});
                     }
                 }
-            }
-
-            if (!playerAlive) { endGame("Computer Wins! You lose."); return true; }
-            if (!enemyAlive) { endGame("Victory is yours!"); return true; }
-            return false;
+            });
         }
 
-        function endGame(message) {
-            gameState = "GAME_OVER";
-            statusText.innerHTML = `🏆 Game Over: ${message}`;
-            buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Restart Game</button>`;
-        }
+        return moves;
+    }
 
-        function renderPieces() {
-            document.querySelectorAll('.piece').forEach(p => p.remove());
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    const data = boardState[r][c];
-                    if (data) {
-                        const cell = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
-                        if (cell) {
-                            const pieceEl = document.createElement('div');
-                            pieceEl.className = `piece ${data.side === 'player' ? 'player-p' : 'player-e'}`;
-                            pieceEl.textContent = data.emoji;
-                            cell.appendChild(pieceEl);
+    function enemyTurn() {
+        if (gameState !== "GAMEPLAY") return;
+
+        let allEnemyMoves = [];
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = boardState[r][c];
+                if (piece && piece.side === 'enemy') {
+                    const moves = calculateMoves(r, c, piece);
+                    moves.forEach(m => {
+                        let score = 1;
+                        const target = boardState[m.r][m.c];
+                        if (target && target.side === 'player') {
+                            score = 10 + (6 - target.tier); 
                         }
-                    }
+                        allEnemyMoves.push({ from: {r, c}, to: m, score: score });
+                    });
                 }
             }
         }
 
-        // 초기 보드판 레이아웃 렌더링 실행
-        createBoard();
-    </script>
-</div>
+        if (allEnemyMoves.length > 0) {
+            allEnemyMoves.sort((a, b) => b.score - a.score);
+            const bestMove = allEnemyMoves[0];
+
+            const from = bestMove.from;
+            const to = bestMove.to;
+
+            boardState[to.r][to.c] = boardState[from.r][from.c];
+            boardState[from.r][from.c] = null;
+
+            renderPieces();
+
+            // 컴퓨터 이동 후 동일 판 발생 감지
+            if (checkRepetitionRule('enemy')) return;
+            if (checkGameOver()) return;
+
+            turn = "player";
+            statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+        } else {
+            endGame("Player Wins!");
+        }
+    }
+
+    // [동형 반복 연산 시스템 함수]
+    function recordBoardState() {
+        let snapshot = "";
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const p = boardState[r][c];
+                if (p) {
+                    snapshot += `${r},${c}:${p.side}:${p.name}/`;
+                }
+            }
+        }
+        boardHistory.push(snapshot);
+        return snapshot;
+    }
+
+    function checkRepetitionRule(mover) {
+        const currentStr = recordBoardState();
+        let count = 0;
+        for (let i = 0; i < boardHistory.length; i++) {
+            if (boardHistory[i] === currentStr) {
+                count++;
+            }
+        }
+        if (count >= 3) {
+            if (mover === 'player') {
+                endGame("Computer Wins! (You lost by Threefold Repetition Rule)");
+            } else {
+                endGame("Victory is yours! (Computer lost by Threefold Repetition Rule)");
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function checkGameOver() {
+        let playerAlive = false;
+        let enemyAlive = false;
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (boardState[r][c]) {
+                    if (boardState[r][c].side === 'player') playerAlive = true;
+                    if (boardState[r][c].side === 'enemy') enemyAlive = true;
+                }
+            }
+        }
+
+        if (!playerAlive) { endGame("Computer Wins! You lose."); return true; }
+        if (!enemyAlive) { endGame("Victory is yours!"); return true; }
+        return false;
+    }
+
+    function endGame(message) {
+        gameState = "GAME_OVER";
+        statusText.innerHTML = `🏆 Game Over: ${message}`;
+        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Restart Game</button>`;
+    }
+
+    function renderPieces() {
+        document.querySelectorAll('.piece').forEach(p => p.remove());
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const data = boardState[r][c];
+                if (data) {
+                    const cell = document.querySelector(`[data-row='${r}'][data-col='${c}']`);
+                    if (cell) {
+                        const pieceEl = document.createElement('div');
+                        pieceEl.className = `piece ${data.side === 'player' ? 'player-p' : 'player-e'}`;
+                        pieceEl.textContent = data.emoji;
+                        cell.appendChild(pieceEl);
+                    }
+                }
+            }
+        }
+    }
+</script>
 </body>
 </html>
