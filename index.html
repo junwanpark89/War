@@ -1,134 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Faction Wars - AI & PVP Battle</title>
-    <!-- PeerJS Library for Real-Time Peer-to-Peer Networking -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #2f3542;
-            font-family: Arial, sans-serif;
-            color: white;
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #2f3542; font-family: Arial, sans-serif;
+            color: white; box-sizing: border-box; user-select: none;
         }
-
         body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2vh 2vw;
-            overflow: auto;
-            touch-action: manipulation;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 2vh 2vw; overflow: auto;
         }
-
         #main-menu {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: #1e222b;
-            padding: 30px 25px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            text-align: center;
-            max-width: 90vw;
-            width: 320px;
+            display: flex; flex-direction: column; align-items: center;
+            background: #1e222b; padding: 30px 25px; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 320px;
         }
-
-        #main-menu h1 {
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 24px;
-            color: #ffffff;
-        }
-
         .menu-btn {
-            width: 100%;
-            padding: 14px;
-            margin: 6px 0;
-            font-size: 15px;
-            font-weight: bold;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: 0.2s;
+            width: 100%; padding: 14px; margin: 6px 0; font-size: 15px;
+            font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer;
         }
-
         .btn-pvp { background-color: #2ed573; }
         .btn-pvp:hover { background-color: #26af5f; }
         .btn-pvc { background-color: #ff4757; }
         .btn-pvc:hover { background-color: #ff6b81; }
+        
+        #room-input-container {
+            margin-top: 10px; display: flex; gap: 5px; width: 100%;
+        }
+        #room-id-input {
+            flex: 1; padding: 10px; border-radius: 5px; border: none; text-transform: uppercase;
+        }
 
         #status-panel {
-            margin-bottom: 2vh;
-            font-size: clamp(13px, 2vmin, 16px);
-            background: #1e222b;
-            padding: 1.2vh 2vw;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            text-align: center;
-            width: calc(60vmin + 8px); 
-            max-width: 95vw; 
-            box-sizing: border-box;
+            margin-bottom: 2vh; font-size: clamp(13px, 2vmin, 16px);
+            background: #1e222b; padding: 1.2vh 2vw; border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); text-align: center;
+            width: calc(60vmin + 8px); max-width: 95vw; box-sizing: border-box;
         }
-
-        .btn-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
+        .btn-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
         .choice-btn {
-            padding: 8px 14px;
-            font-size: clamp(11px, 1.6vmin, 13px);
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            background-color: #ff4757;
-            color: white;
-            font-weight: bold;
-            transition: 0.2s;
+            padding: 8px 14px; font-size: clamp(11px, 1.6vmin, 13px);
+            cursor: pointer; border: none; border-radius: 5px; background-color: #ff4757;
+            color: white; font-weight: bold;
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
         .chessboard {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr); 
-            grid-template-rows: repeat(8, 1fr);
-            border: 4px solid #1e222b;
-            background-color: #1e222b;
-            gap: 0 !important;
-            padding: 0 !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            width: calc(60vmin + 8px);
-            height: calc(60vmin + 8px);
-            max-width: 95vw;
-            max-height: 95vw;
-            box-sizing: border-box;
+            display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+            border: 4px solid #1e222b; background-color: #1e222b; gap: 0 !important;
+            padding: 0 !important; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: calc(60vmin + 8px); height: calc(60vmin + 8px); max-width: 95vw; max-height: 95vw;
         }
-
         .cell {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 4.8vmin;
-            cursor: pointer;
-            position: relative;
-            aspect-ratio: 1 / 1;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 4.8vmin; cursor: pointer; position: relative; aspect-ratio: 1 / 1;
         }
-
         .cell.highlight { box-shadow: inset 0 0 15px #2ed573; background-color: #2ed57344 !important; }
         .cell.move-valid { box-shadow: inset 0 0 15px #ffa500; background-color: #ffa50044 !important; }
         .cell.enemy-move-valid { box-shadow: inset 0 0 15px #ff4757; background-color: #ff475744 !important; }
@@ -138,69 +69,47 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        .cell:has(.player-p)::after,
-        .cell:has(.player-e)::after {
-            content: "";
-            position: absolute;
-            bottom: 8%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 72%;
-            height: 18%;
-            border-radius: 50%;
-            z-index: 1;
+        .cell:has(.player-p)::after, .cell:has(.player-e)::after {
+            content: ""; position: absolute; bottom: 8%; left: 50%;
+            transform: translateX(-50%); width: 72%; height: 18%; border-radius: 50%; z-index: 1;
         }
-
         .cell:has(.player-p)::after {
             background: radial-gradient(ellipse at center, #3a3a3a 0%, #1a1a1a 100%);
-            border: 2px solid #0a0a0a;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            border: 2px solid #0a0a0a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
-
         .cell:has(.player-e)::after {
             background: radial-gradient(ellipse at center, #ffffff 0%, #e0e0e0 100%);
-            border: 2px solid #b5b5b5;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+            border: 2px solid #b5b5b5; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
         }
-
         .piece {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2;
-            transform: translateY(-4%);
+            width: 100%; height: 100%; display: flex; justify-content: center;
+            align-items: center; z-index: 2; transform: translateY(-4%);
         }
         .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
-
-        @media (max-width: 600px) {
-            body { padding: 8px; }
-            #status-panel { width: 95% !important; max-width: 95% !important; margin-bottom: 12px; }
-            .chessboard { width: 90vw !important; height: 90vw !important; }
-            .cell { font-size: 6vw; }
-        }
     </style>
 </head>
 <body>
 
 <div id="main-menu">
     <h1>Ultimate Faction Wars</h1>
-    <button class="menu-btn btn-pvc" onclick="startPVCMode()">🤖 Player vs Computer</button>
-    <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Host / Join PVP Match</button>
+    <button class="menu-btn btn-pvc" onclick="startPVCMode()">🤖 싱글 대전 (vs AI)</button>
+    <button class="menu-btn btn-pvp" onclick="hostPVPGame()">🎮 PVP 방 만들기</button>
+    <div id="room-input-container">
+        <input type="text" id="room-id-input" placeholder="방 코드 입력" maxlength="6">
+        <button class="choice-btn" onclick="joinPVPGame()">참가</button>
+    </div>
 </div>
 
 <div id="game-wrapper" style="display: none;">
     <div id="status-panel">
-        <div id="status-text">To start the game, choose your faction!</div>
+        <div id="status-text">진영을 선택하세요!</div>
         <div id="button-zone" class="btn-container">
-            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
-            <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
-            <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
+            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 드래곤</button>
+            <button class="choice-btn" onclick="selectRace('Elf')">🧝 엘프</button>
+            <button class="choice-btn" onclick="selectRace('Human')">👱 휴먼</button>
         </div>
     </div>
-
     <div class="chessboard" id="board"></div>
 </div>
 
@@ -212,7 +121,6 @@
     let gameMode = "PVC";
     let peer = null, conn = null;
     let isHost = false;
-    let isDisconnectedHandled = false;
 
     const PIECE_DATABASE = {
         Dragon: {
@@ -246,7 +154,7 @@
     let currentDraftTier = 6; 
     let playerSelectedPiece = null, enemySelectedPiece = null;
     let remainingPlacements = 0;
-    let draftTurn = "host"; // 'host' or 'guest'
+    let draftTurn = "host";
     let turn = "player"; 
 
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
@@ -261,85 +169,60 @@
         createBoard();
     }
 
-    function startPVPMode() {
+    function hostPVPGame() {
         gameMode = "PVP";
-        isDisconnectedHandled = false;
-        const publicRoomId = "ufw_match_public_room_v1";
-
+        isHost = true;
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('game-wrapper').style.display = 'block';
         createBoard();
 
-        statusText.innerHTML = "🔍 Looking for opponent...";
+        statusText.innerHTML = `방 코드: <b>${code}</b><br>상대방의 입장을 기다리는 중...`;
+        buttonZone.innerHTML = "";
+
+        peer = new Peer(code);
+        peer.on('connection', (c) => {
+            conn = c;
+            setupConnection();
+        });
+    }
+
+    function joinPVPGame() {
+        const code = document.getElementById('room-id-input').value.trim().toUpperCase();
+        if (!code) return alert("방 코드를 입력하세요!");
+        
+        gameMode = "PVP";
+        isHost = false;
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('game-wrapper').style.display = 'block';
+        createBoard();
+
+        statusText.innerHTML = "방에 연결 중...";
         buttonZone.innerHTML = "";
 
         peer = new Peer();
-
         peer.on('open', () => {
-            const connAttempt = peer.connect(publicRoomId);
-            
-            const timer = setTimeout(() => {
-                peer.destroy();
-                peer = new Peer(publicRoomId);
-                
-                peer.on('open', () => {
-                    isHost = true;
-                    statusText.innerHTML = "⌛ Waiting for an opponent to join...";
-                });
-
-                peer.on('connection', (c) => {
-                    conn = c;
-                    setupConnection();
-                });
-            }, 1500);
-
-            connAttempt.on('open', () => {
-                clearTimeout(timer);
-                conn = connAttempt;
-                isHost = false;
-                setupConnection();
-            });
+            conn = peer.connect(code);
+            setupConnection();
         });
-
-        peer.on('error', (err) => {
-            handleOpponentDisconnect();
-        });
-    }
-
-    function handleOpponentDisconnect() {
-        if (isDisconnectedHandled) return;
-        isDisconnectedHandled = true;
-        
-        statusText.innerHTML = "⚠️ <b>Opponent Disconnected!</b>";
-        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Return to Main Menu</button>`;
-        alert("Opponent has disconnected from the match.");
     }
 
     function setupConnection() {
-        statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
-        buttonZone.innerHTML = `
-            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
-            <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
-            <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
-        `;
-
-        conn.on('data', (data) => {
-            handleNetworkData(data);
+        conn.on('open', () => {
+            statusText.innerHTML = "🎮 상대방이 참가했습니다! 진영을 선택하세요:";
+            buttonZone.innerHTML = `
+                <button class="choice-btn" onclick="selectRace('Dragon')">🐉 드래곤</button>
+                <button class="choice-btn" onclick="selectRace('Elf')">🧝 엘프</button>
+                <button class="choice-btn" onclick="selectRace('Human')">👱 휴먼</button>
+            `;
         });
 
-        conn.on('close', () => {
-            handleOpponentDisconnect();
-        });
-
-        conn.on('error', () => {
-            handleOpponentDisconnect();
-        });
+        conn.on('data', handleNetworkData);
+        conn.on('close', () => alert("상대방과의 연결이 끊어졌습니다."));
     }
 
     function sendNetworkData(data) {
-        if (conn && conn.open) {
-            conn.send(data);
-        }
+        if (conn && conn.open) conn.send(data);
     }
 
     function handleNetworkData(data) {
@@ -353,34 +236,25 @@
             renderPieces();
 
             draftTurn = data.nextDraftTurn;
-            
             if (data.finishedAllDraft) {
                 gameState = "GAMEPLAY";
                 turn = isHost ? "player" : "enemy";
-                if (turn === "player") {
-                    statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
-                } else {
-                    statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
-                }
+                statusText.innerHTML = turn === "player" ? "⚔️ 대전 시작! 당신의 턴입니다." : "⚔️ 상대방의 차례입니다...";
                 recordBoardState();
             } else {
                 updatePvpDraftStatus();
             }
         } else if (data.type === 'MOVE') {
-            const fromR = 7 - data.from.r;
-            const fromC = 7 - data.from.c;
-            const toR = 7 - data.to.r;
-            const toC = 7 - data.to.c;
+            const fromR = 7 - data.from.r, fromC = 7 - data.from.c;
+            const toR = 7 - data.to.r, toC = 7 - data.to.c;
 
             boardState[toR][toC] = boardState[fromR][fromC];
             boardState[fromR][fromC] = null;
             renderPieces();
 
-            if (checkRepetitionRule('enemy')) return;
-            if (checkGameOver()) return;
-
+            if (checkRepetitionRule('enemy') || checkGameOver()) return;
             turn = "player";
-            statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+            statusText.innerHTML = "⚔️ 당신의 턴입니다! 기물을 선택하세요.";
         }
     }
 
@@ -416,7 +290,7 @@
             startTierDraft();
         } else {
             sendNetworkData({ type: 'SELECT_RACE', race: race });
-            statusText.innerHTML = `Selected <b>${race}</b>. Waiting for opponent...`;
+            statusText.innerHTML = `<b>${race}</b> 진영을 선택했습니다. 상대방을 기다리는 중...`;
             buttonZone.innerHTML = "";
             if (pvpEnemyRaceSelected) {
                 gameState = "DRAFT_LOOP";
@@ -432,7 +306,7 @@
         if (currentDraftTier === 6) totalToPlace = 8;
         else if (currentDraftTier >= 3) totalToPlace = 2;
 
-        statusText.innerHTML = `Choose Tier ${currentDraftTier} piece. (Deploy ${totalToPlace})`;
+        statusText.innerHTML = `${currentDraftTier}티어 기물을 선택하세요. (${totalToPlace}개 배치)`;
         buttonZone.innerHTML = "";
 
         PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
@@ -446,31 +320,28 @@
 
     function chooseDraftPiece(piece) {
         playerSelectedPiece = { ...piece, tier: currentDraftTier };
-
         if (currentDraftTier === 6) remainingPlacements = 8;
         else if (currentDraftTier >= 3) remainingPlacements = 2; 
         else remainingPlacements = 1;
 
         buttonZone.innerHTML = "";
-
         if (gameMode === "PVC") {
-            statusText.innerHTML = `Deploy ${piece.emoji} on bottom 2 rows. (Remaining: ${remainingPlacements})`;
+            statusText.innerHTML = `하단 2줄 영역에 ${piece.emoji} 기물을 배치하세요. (남은 수량: ${remainingPlacements})`;
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
             enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
+            highlightDraftZone(true);
         } else {
             updatePvpDraftStatus();
         }
-
-        highlightDraftZone(true);
     }
 
     function updatePvpDraftStatus() {
         const isMyTurn = (isHost && draftTurn === "host") || (!isHost && draftTurn === "guest");
         if (isMyTurn) {
-            statusText.innerHTML = `Deploy ${playerSelectedPiece.emoji} on bottom 2 rows. (Your Turn - Remaining: ${remainingPlacements})`;
+            statusText.innerHTML = `하단 2줄 영역에 ${playerSelectedPiece ? playerSelectedPiece.emoji : ''} 기물을 배치하세요. (남은 수량: ${remainingPlacements})`;
             highlightDraftZone(true);
         } else {
-            statusText.innerHTML = `Waiting for opponent to deploy a piece... (Remaining: ${remainingPlacements})`;
+            statusText.innerHTML = `상대방이 기물을 배치 중입니다...`;
             highlightDraftZone(false);
         }
     }
@@ -501,40 +372,31 @@
                     remainingPlacements--;
 
                     if (remainingPlacements > 0) {
-                        statusText.innerHTML = `Deploy remaining ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
+                        statusText.innerHTML = `남은 ${playerSelectedPiece.emoji} 기물을 배치하세요. (남은 수량: ${remainingPlacements})`;
                     } else {
                         highlightDraftZone(false);
                         playerSelectedPiece = null;
-                        
                         if (currentDraftTier > 1) {
                             currentDraftTier--; 
                             startTierDraft();
                         } else {
                             gameState = "GAMEPLAY";
                             turn = "player";
-                            statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
+                            statusText.innerHTML = "⚔️ 대전 시작! 이동할 기물을 선택하세요.";
                             recordBoardState();
                         }
                     }
                 } else {
                     renderPieces();
                     remainingPlacements--;
-
                     const nextTurn = draftTurn === "host" ? "guest" : "host";
 
-                    let totalPiecesOnBoard = 0;
-                    for(let r=0; r<8; r++) {
-                        for(let c=0; c<8; c++) {
-                            if(boardState[r][c]) totalPiecesOnBoard++;
-                        }
-                    }
-
-                    let isFinishedAll = (currentDraftTier === 1 && remainingPlacements === 0 && totalPiecesOnBoard >= 32);
+                    let count = 0;
+                    boardState.forEach(r => r.forEach(c => { if(c) count++; }));
+                    let isFinishedAll = (currentDraftTier === 1 && remainingPlacements === 0);
 
                     sendNetworkData({
-                        type: 'PLACE_PIECE',
-                        r: row,
-                        c: col,
+                        type: 'PLACE_PIECE', r: row, c: col,
                         piece: boardState[row][col],
                         nextDraftTurn: nextTurn,
                         finishedAllDraft: isFinishedAll
@@ -544,11 +406,7 @@
                         gameState = "GAMEPLAY";
                         turn = isHost ? "player" : "enemy";
                         highlightDraftZone(false);
-                        if (turn === "player") {
-                            statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
-                        } else {
-                            statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
-                        }
+                        statusText.innerHTML = turn === "player" ? "⚔️ 대전 시작! 당신의 턴입니다." : "⚔️ 상대방의 차례입니다...";
                         recordBoardState();
                     } else {
                         if (remainingPlacements === 0) {
@@ -575,7 +433,6 @@
 
             if (activePiece && activePiece.side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
                 const from = selectedCell;
-                
                 boardState[row][col] = boardState[from.r][from.c];
                 boardState[from.r][from.c] = null;
                 
@@ -584,46 +441,33 @@
                 renderPieces();
 
                 if (gameMode === "PVP") {
-                    sendNetworkData({
-                        type: 'MOVE',
-                        from: from,
-                        to: { r: row, c: col }
-                    });
+                    sendNetworkData({ type: 'MOVE', from: from, to: { r: row, c: col } });
                 }
 
-                if (checkRepetitionRule('player')) return;
-                if (checkGameOver()) return;
+                if (checkRepetitionRule('player') || checkGameOver()) return;
 
                 turn = "enemy";
                 if (gameMode === "PVC") {
-                    statusText.innerHTML = "🤖 Computer thinking...";
-                    setTimeout(enemyTurn, 800);
+                    statusText.innerHTML = "🤖 컴퓨터가 생각 중입니다...";
+                    setTimeout(enemyTurn, 600);
                 } else {
-                    statusText.innerHTML = " Waiting for opponent's turn...";
+                    statusText.innerHTML = "상대방의 턴을 기다리는 중...";
                 }
                 return; 
             } 
 
             if (clickedCellData) {
+                clearHighlights();
+                selectedCell = { r: row, c: col };
+                const cellEl = document.querySelector(`[data-row='${row}'][data-col='${col}']`);
+                validMoves = calculateMoves(row, col, clickedCellData);
+
                 if (clickedCellData.side === 'player') {
-                    clearHighlights();
-                    selectedCell = { r: row, c: col };
-                    document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('selected');
-                    
-                    validMoves = calculateMoves(row, col, clickedCellData);
-                    validMoves.forEach(m => {
-                        document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid');
-                    });
-                } 
-                else if (clickedCellData.side === 'enemy') {
-                    clearHighlights();
-                    selectedCell = { r: row, c: col }; 
-                    document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('enemy-selected');
-                    
-                    validMoves = calculateMoves(row, col, clickedCellData);
-                    validMoves.forEach(m => {
-                        document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid');
-                    });
+                    cellEl.classList.add('selected');
+                    validMoves.forEach(m => document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('move-valid'));
+                } else {
+                    cellEl.classList.add('enemy-selected');
+                    validMoves.forEach(m => document.querySelector(`[data-row='${m.r}'][data-col='${m.c}']`).classList.add('enemy-move-valid'));
                 }
             } else {
                 clearHighlights();
@@ -646,9 +490,7 @@
     }
 
     function clearHighlights() {
-        document.querySelectorAll('.cell').forEach(c => {
-            c.classList.remove('selected', 'enemy-selected', 'move-valid', 'enemy-move-valid');
-        });
+        document.querySelectorAll('.cell').forEach(c => c.classList.remove('selected', 'enemy-selected', 'move-valid', 'enemy-move-valid'));
     }
 
     function calculateMoves(row, col, piece) {
@@ -670,18 +512,14 @@
 
         directions.forEach(dir => {
             for (let i = 1; i <= maxRange; i++) {
-                const nr = row + dir.r * i;
-                const nc = col + dir.c * i;
-
+                const nr = row + dir.r * i, nc = col + dir.c * i;
                 if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break; 
 
                 const target = boardState[nr][nc];
                 if (!target) {
                     moves.push({ r: nr, c: nc });
                 } else {
-                    if (target.side !== side) {
-                        moves.push({ r: nr, c: nc });
-                    }
+                    if (target.side !== side) moves.push({ r: nr, c: nc });
                     break; 
                 }
             }
@@ -693,23 +531,18 @@
                 {r:1, c:-2}, {r:1, c:2}, {r:2, c:-1}, {r:2, c:1}
             ];
             knightOffsets.forEach(off => {
-                const nr = row + off.r;
-                const nc = col + off.c;
+                const nr = row + off.r, nc = col + off.c;
                 if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                     const target = boardState[nr][nc];
-                    if (!target || target.side !== side) {
-                        moves.push({r: nr, c: nc});
-                    }
+                    if (!target || target.side !== side) moves.push({r: nr, c: nc});
                 }
             });
         }
-
         return moves;
     }
 
     function enemyTurn() {
         if (gameState !== "GAMEPLAY") return;
-
         let allEnemyMoves = [];
 
         for (let r = 0; r < 8; r++) {
@@ -720,9 +553,7 @@
                     moves.forEach(m => {
                         let score = 1;
                         const target = boardState[m.r][m.c];
-                        if (target && target.side === 'player') {
-                            score = 10 + (6 - target.tier); 
-                        }
+                        if (target && target.side === 'player') score = 10 + (6 - target.tier); 
                         allEnemyMoves.push({ from: {r, c}, to: m, score: score });
                     });
                 }
@@ -733,21 +564,15 @@
             allEnemyMoves.sort((a, b) => b.score - a.score);
             const bestMove = allEnemyMoves[0];
 
-            const from = bestMove.from;
-            const to = bestMove.to;
-
-            boardState[to.r][to.c] = boardState[from.r][from.c];
-            boardState[from.r][from.c] = null;
-
+            boardState[bestMove.to.r][bestMove.to.c] = boardState[bestMove.from.r][bestMove.from.c];
+            boardState[bestMove.from.r][bestMove.from.c] = null;
             renderPieces();
 
-            if (checkRepetitionRule('enemy')) return;
-            if (checkGameOver()) return;
-
+            if (checkRepetitionRule('enemy') || checkGameOver()) return;
             turn = "player";
-            statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+            statusText.innerHTML = "⚔️ 당신의 턴입니다! 기물을 선택하세요.";
         } else {
-            endGame("Player Wins!");
+            endGame("플레이어 승리!");
         }
     }
 
@@ -756,9 +581,7 @@
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 const p = boardState[r][c];
-                if (p) {
-                    snapshot += `${r},${c}:${p.side}:${p.name}/`;
-                }
+                if (p) snapshot += `${r},${c}:${p.side}:${p.name}/`;
             }
         }
         boardHistory.push(snapshot);
@@ -767,46 +590,30 @@
 
     function checkRepetitionRule(mover) {
         const currentStr = recordBoardState();
-        let count = 0;
-        for (let i = 0; i < boardHistory.length; i++) {
-            if (boardHistory[i] === currentStr) {
-                count++;
-            }
-        }
+        let count = boardHistory.filter(s => s === currentStr).length;
         if (count >= 3) {
-            const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
-            if (mover === 'player') {
-                endGame(`${enemyLabel} Wins! (Lost by Threefold Repetition)`);
-            } else {
-                endGame(`Victory is yours! (${enemyLabel} lost by Threefold Repetition)`);
-            }
+            const label = gameMode === "PVC" ? "컴퓨터" : "상대방";
+            endGame(mover === 'player' ? `${label} 승리! (3회 동일상태 반복)` : `승리! (${label} 이동 반복)`);
             return true;
         }
         return false;
     }
 
     function checkGameOver() {
-        let playerAlive = false;
-        let enemyAlive = false;
+        let playerAlive = false, enemyAlive = false;
+        boardState.forEach(r => r.forEach(p => {
+            if (p?.side === 'player') playerAlive = true;
+            if (p?.side === 'enemy') enemyAlive = true;
+        }));
 
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (boardState[r][c]) {
-                    if (boardState[r][c].side === 'player') playerAlive = true;
-                    if (boardState[r][c].side === 'enemy') enemyAlive = true;
-                }
-            }
-        }
-
-        const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
-        if (!playerAlive) { endGame(`${enemyLabel} Wins! You lose.`); return true; }
-        if (!enemyAlive) { endGame("Victory is yours!"); return true; }
+        if (!playerAlive) { endGame("패배했습니다!"); return true; }
+        if (!enemyAlive) { endGame("승리했습니다!"); return true; }
         return false;
     }
 
     function endGame(message) {
         statusText.innerHTML = `🏆 <b>${message}</b>`;
-        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Return to Main Menu</button>`;
+        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">메인 메뉴로</button>`;
         gameState = "GAMEOVER";
     }
 
