@@ -328,9 +328,6 @@
         if (data.type === 'SELECT_RACE') {
             enemyRace = data.race;
             checkPvpRaceSelected();
-        } else if (data.type === 'DRAFT_SELECT_PIECE') {
-            enemySelectedPiece = data.piece;
-            statusText.innerHTML = `Opponent selected piece. Waiting for opponent to place...`;
         } else if (data.type === 'PLACE_PIECE') {
             const mirrorR = 7 - data.r;
             const mirrorC = 7 - data.c;
@@ -349,7 +346,7 @@
                 }
                 recordBoardState();
             } else {
-                processPvpDraftTurn();
+                updatePvpDraftStatus();
             }
         } else if (data.type === 'MOVE') {
             const fromR = 7 - data.from.r;
@@ -412,66 +409,52 @@
     }
 
     function startTierDraft() {
-        if (gameMode === "PVC") {
-            let totalToPlace = 1;
-            if (currentDraftTier === 6) totalToPlace = 8;
-            else if (currentDraftTier >= 3) totalToPlace = 2;
+        playerSelectedPiece = null;
+        let totalToPlace = 1;
+        if (currentDraftTier === 6) totalToPlace = 8;
+        else if (currentDraftTier >= 3) totalToPlace = 2;
 
-            statusText.innerHTML = `[${playerRace} vs ${enemyRace}]<br>Choose Tier ${currentDraftTier} piece. (Deploy ${totalToPlace})`;
-            buttonZone.innerHTML = "";
+        statusText.innerHTML = `Choose Tier ${currentDraftTier} piece. (Deploy ${totalToPlace})`;
+        buttonZone.innerHTML = "";
 
-            PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
-                const btn = document.createElement('button');
-                btn.className = "choice-btn";
-                btn.innerHTML = `${piece.emoji} ${piece.name}`;
-                btn.onclick = () => chooseDraftPiece(piece);
-                buttonZone.appendChild(btn);
-            });
-        } else {
-            processPvpDraftTurn();
-        }
-    }
-
-    function processPvpDraftTurn() {
-        const isMyDraftTurn = (isHost && draftTurn === "host") || (!isHost && draftTurn === "guest");
-
-        if (isMyDraftTurn) {
-            statusText.innerHTML = `[Tier ${currentDraftTier} Draft] Your turn to pick and deploy 1 piece!`;
-            buttonZone.innerHTML = "";
-            PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
-                const btn = document.createElement('button');
-                btn.className = "choice-btn";
-                btn.innerHTML = `${piece.emoji} ${piece.name}`;
-                btn.onclick = () => chooseDraftPiece(piece);
-                buttonZone.appendChild(btn);
-            });
-        } else {
-            statusText.innerHTML = `[Tier ${currentDraftTier} Draft] Waiting for opponent to place a piece...`;
-            buttonZone.innerHTML = "";
-        }
+        PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
+            const btn = document.createElement('button');
+            btn.className = "choice-btn";
+            btn.innerHTML = `${piece.emoji} ${piece.name}`;
+            btn.onclick = () => chooseDraftPiece(piece);
+            buttonZone.appendChild(btn);
+        });
     }
 
     function chooseDraftPiece(piece) {
         playerSelectedPiece = { ...piece, tier: currentDraftTier };
 
+        if (currentDraftTier === 6) remainingPlacements = 8;
+        else if (currentDraftTier >= 3) remainingPlacements = 2; 
+        else remainingPlacements = 1;
+
+        buttonZone.innerHTML = "";
+
         if (gameMode === "PVC") {
-            if (currentDraftTier === 6) remainingPlacements = 8;
-            else if (currentDraftTier >= 3) remainingPlacements = 2; 
-            else remainingPlacements = 1;
-
-            buttonZone.innerHTML = "";
             statusText.innerHTML = `Deploy ${piece.emoji} on bottom 2 rows. (Remaining: ${remainingPlacements})`;
-
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
             enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
         } else {
-            remainingPlacements = 1; 
-            sendNetworkData({ type: 'DRAFT_SELECT_PIECE', piece: playerSelectedPiece });
-            buttonZone.innerHTML = "";
-            statusText.innerHTML = `Place ${piece.emoji} on bottom 2 rows.`;
+            updatePvpDraftStatus();
         }
 
         highlightDraftZone(true);
+    }
+
+    function updatePvpDraftStatus() {
+        const isMyTurn = (isHost && draftTurn === "host") || (!isHost && draftTurn === "guest");
+        if (isMyTurn) {
+            statusText.innerHTML = `Deploy ${playerSelectedPiece.emoji} on bottom 2 rows. (Your Turn - Remaining: ${remainingPlacements})`;
+            highlightDraftZone(true);
+        } else {
+            statusText.innerHTML = `Waiting for opponent to deploy a piece... (Remaining: ${remainingPlacements})`;
+            highlightDraftZone(false);
+        }
     }
 
     function highlightDraftZone(on) {
@@ -486,6 +469,12 @@
         if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
             if (row === 6 || row === 7) {
                 if (boardState[row][col]) return;
+
+                if (gameMode === "PVP") {
+                    const isMyTurn = (isHost && draftTurn === "host") || (!isHost && draftTurn === "guest");
+                    if (!isMyTurn) return; // 상대방 턴일 때는 클릭 막기
+                }
+
                 boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
                 
                 if (gameMode === "PVC") {
@@ -511,22 +500,18 @@
                     }
                 } else {
                     renderPieces();
-                    highlightDraftZone(false);
-                    playerSelectedPiece = null;
+                    remainingPlacements--;
 
                     const nextTurn = draftTurn === "host" ? "guest" : "host";
 
-                    let isFinishedAll = false;
-                    let hostPiecesCount = 0;
-                    for(let r=0; r<8; r++){
-                        for(let c=0; c<8; c++){
-                            if(boardState[r][c]) hostPiecesCount++;
+                    let totalPiecesOnBoard = 0;
+                    for(let r=0; r<8; r++) {
+                        for(let c=0; c<8; c++) {
+                            if(boardState[r][c]) totalPiecesOnBoard++;
                         }
                     }
 
-                    if (currentDraftTier === 1 && hostPiecesCount >= 16) {
-                        isFinishedAll = true;
-                    }
+                    let isFinishedAll = (currentDraftTier === 1 && remainingPlacements === 0 && totalPiecesOnBoard >= 32);
 
                     sendNetworkData({
                         type: 'PLACE_PIECE',
@@ -540,6 +525,7 @@
                     if (isFinishedAll) {
                         gameState = "GAMEPLAY";
                         turn = isHost ? "player" : "enemy";
+                        highlightDraftZone(false);
                         if (turn === "player") {
                             statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
                         } else {
@@ -547,26 +533,18 @@
                         }
                         recordBoardState();
                     } else {
-                        if (draftTurn === "guest") {
-                            if (currentDraftTier === 6) {
-                                let placedCount = 0;
-                                for(let r=0; r<8; r++) for(let c=0; c<8; c++) if(boardState[r][c]) placedCount++;
-                                if(placedCount >= 16) currentDraftTier = 5;
-                            } else if (currentDraftTier >= 3) {
-                                let placedCount = 0;
-                                for(let r=0; r<8; r++) for(let c=0; c<8; c++) if(boardState[r][c]) placedCount++;
-                                if (currentDraftTier === 5 && placedCount >= 20) currentDraftTier = 4;
-                                else if (currentDraftTier === 4 && placedCount >= 24) currentDraftTier = 3;
-                                else if (currentDraftTier === 3 && placedCount >= 28) currentDraftTier = 2;
-                            } else {
-                                let placedCount = 0;
-                                for(let r=0; r<8; r++) for(let c=0; c<8; c++) if(boardState[r][c]) placedCount++;
-                                if (currentDraftTier === 2 && placedCount >= 30) currentDraftTier = 1;
+                        if (remainingPlacements === 0) {
+                            highlightDraftZone(false);
+                            playerSelectedPiece = null;
+                            if (currentDraftTier > 1) {
+                                currentDraftTier--;
+                                startTierDraft();
+                                draftTurn = nextTurn;
+                                return;
                             }
                         }
-
                         draftTurn = nextTurn;
-                        processPvpDraftTurn();
+                        updatePvpDraftStatus();
                     }
                 }
             }
