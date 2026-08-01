@@ -212,6 +212,7 @@
     let gameMode = "PVC";
     let peer = null, conn = null;
     let isHost = false;
+    let isDisconnectedHandled = false;
 
     const PIECE_DATABASE = {
         Dragon: {
@@ -262,6 +263,7 @@
 
     function startPVPMode() {
         gameMode = "PVP";
+        isDisconnectedHandled = false;
         const publicRoomId = "ufw_match_public_room_v1";
 
         document.getElementById('main-menu').style.display = 'none';
@@ -298,6 +300,19 @@
                 setupConnection();
             });
         });
+
+        peer.on('error', (err) => {
+            handleOpponentDisconnect();
+        });
+    }
+
+    function handleOpponentDisconnect() {
+        if (isDisconnectedHandled) return;
+        isDisconnectedHandled = true;
+        
+        statusText.innerHTML = "⚠️ <b>Opponent Disconnected!</b>";
+        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Return to Main Menu</button>`;
+        alert("Opponent has disconnected from the match.");
     }
 
     function setupConnection() {
@@ -313,8 +328,11 @@
         });
 
         conn.on('close', () => {
-            alert("Opponent disconnected.");
-            location.reload();
+            handleOpponentDisconnect();
+        });
+
+        conn.on('error', () => {
+            handleOpponentDisconnect();
         });
     }
 
@@ -472,7 +490,7 @@
 
                 if (gameMode === "PVP") {
                     const isMyTurn = (isHost && draftTurn === "host") || (!isHost && draftTurn === "guest");
-                    if (!isMyTurn) return; // 상대방 턴일 때는 클릭 막기
+                    if (!isMyTurn) return; 
                 }
 
                 boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
@@ -784,6 +802,12 @@
         if (!playerAlive) { endGame(`${enemyLabel} Wins! You lose.`); return true; }
         if (!enemyAlive) { endGame("Victory is yours!"); return true; }
         return false;
+    }
+
+    function endGame(message) {
+        statusText.innerHTML = `🏆 <b>${message}</b>`;
+        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Return to Main Menu</button>`;
+        gameState = "GAMEOVER";
     }
 
     function renderPieces() {
