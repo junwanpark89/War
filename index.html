@@ -213,6 +213,7 @@
     let peer = null, conn = null;
     let isHost = false;
     let isDisconnectedHandled = false;
+    let isConnected = false; // 상대방과 실제 매칭이 성사되었는지 추적하는 플래그
 
     const PIECE_DATABASE = {
         Dragon: {
@@ -264,6 +265,7 @@
     function startPVPMode() {
         gameMode = "PVP";
         isDisconnectedHandled = false;
+        isConnected = false; // 접속 대기 초기화
         const publicRoomId = "ufw_match_public_room_v1";
 
         document.getElementById('main-menu').style.display = 'none';
@@ -307,7 +309,8 @@
     }
 
     function handleOpponentDisconnect() {
-        if (isDisconnectedHandled) return;
+        // 상대방과 제대로 매칭이 성공했던 경우에만 끊김 처리 실행
+        if (!isConnected || isDisconnectedHandled) return;
         isDisconnectedHandled = true;
         
         statusText.innerHTML = "⚠️ <b>Opponent Disconnected!</b>";
@@ -316,6 +319,7 @@
     }
 
     function setupConnection() {
+        isConnected = true; // 상대방과 매칭 성공 상태로 설정
         statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
         buttonZone.innerHTML = `
             <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
