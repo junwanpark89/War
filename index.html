@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Faction Wars - AI Battle</title>
-    <!-- PVP 실시간 네트워크 통신을 위한 PeerJS 라이브러리 추가 -->
+    <title>Ultimate Faction Wars - AI & PVP Battle</title>
+    <!-- PeerJS Library for Real-Time Peer-to-Peer Networking -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        /* 1. 전체 브라우저 화면 설정 */
         html, body {
             margin: 0;
             padding: 0;
@@ -17,6 +16,8 @@
             font-family: Arial, sans-serif;
             color: white;
             box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
@@ -25,17 +26,17 @@
             align-items: center;
             justify-content: center;
             padding: 2vh 2vw;
-            overflow: auto; /* 화면 짤림 방지 */
+            overflow: auto;
+            touch-action: manipulation;
         }
 
-        /* 메인 모드 선택 페이지 스타일 */
         #main-menu {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             background: #1e222b;
-            padding: 40px 30px;
+            padding: 30px 25px;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             text-align: center;
@@ -45,16 +46,16 @@
 
         #main-menu h1 {
             margin-top: 0;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             font-size: 24px;
             color: #ffffff;
         }
 
         .menu-btn {
             width: 100%;
-            padding: 15px;
-            margin: 8px 0;
-            font-size: 16px;
+            padding: 14px;
+            margin: 6px 0;
+            font-size: 15px;
             font-weight: bold;
             color: white;
             border: none;
@@ -68,7 +69,19 @@
         .btn-pvc { background-color: #ff4757; }
         .btn-pvc:hover { background-color: #ff6b81; }
 
-        /* 2. 상단 설명창 */
+        .room-input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #2f3542;
+            color: #fff;
+            box-sizing: border-box;
+            text-align: center;
+            font-size: 14px;
+        }
+
         #status-panel {
             margin-bottom: 2vh;
             font-size: clamp(13px, 2vmin, 16px);
@@ -77,12 +90,8 @@
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             text-align: center;
-            
             width: calc(60vmin + 8px); 
             max-width: 95vw; 
-            
-            flex-shrink: 3;
-            overflow: hidden;
             box-sizing: border-box;
         }
 
@@ -95,7 +104,7 @@
         }
 
         .choice-btn {
-            padding: 6px 12px;
+            padding: 8px 14px;
             font-size: clamp(11px, 1.6vmin, 13px);
             cursor: pointer;
             border: none;
@@ -104,11 +113,9 @@
             color: white;
             font-weight: bold;
             transition: 0.2s;
-            flex-shrink: 1;
         }
         .choice-btn:hover { background-color: #ff6b81; }
 
-        /* 3. 체스판 크기 고정 */
         .chessboard {
             display: grid;
             grid-template-columns: repeat(8, 1fr); 
@@ -118,7 +125,6 @@
             gap: 0 !important;
             padding: 0 !important;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            
             width: calc(60vmin + 8px);
             height: calc(60vmin + 8px);
             max-width: 95vw;
@@ -126,16 +132,14 @@
             box-sizing: border-box;
         }
 
-        /* 4. 칸 내부 스타일 및 크기 유지 보장 */
         .cell {
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 4.8vmin;
-            user-select: none;
             cursor: pointer;
             position: relative;
-            aspect-ratio: 1 / 1; /* 빈 칸일 때도 정사각형 유지 */
+            aspect-ratio: 1 / 1;
         }
 
         .cell.highlight { box-shadow: inset 0 0 15px #2ed573; background-color: #2ed57344 !important; }
@@ -147,7 +151,6 @@
         .white { background-color: #f0d9b5; }
         .black { background-color: #b58863; }
 
-        /* 5. 발밑 받침대 스타일 */
         .cell:has(.player-p)::after,
         .cell:has(.player-e)::after {
             content: "";
@@ -185,25 +188,24 @@
         .player-p { color: #ffffff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
         .player-e { color: #1e1e1e; text-shadow: 0 2px 5px rgba(255,255,255,0.4); }
 
-        /* 모바일 대응 */
         @media (max-width: 600px) {
             body { padding: 8px; }
-            #status-panel { width: 95% !important; max-width: 95% !important; margin-bottom: 15px; }
-            .chessboard { width: 90vw !important; height: 90vw !important; max-width: 90vw !important; max-height: 90vw !important; }
+            #status-panel { width: 95% !important; max-width: 95% !important; margin-bottom: 12px; }
+            .chessboard { width: 90vw !important; height: 90vw !important; }
             .cell { font-size: 6vw; }
         }
     </style>
 </head>
 <body>
 
-<!-- 1. 새로 추가된 메인 페이지 선택창 -->
 <div id="main-menu">
     <h1>Ultimate Faction Wars</h1>
-    <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Player vs Player</button>
     <button class="menu-btn btn-pvc" onclick="startPVCMode()">🤖 Player vs Computer</button>
+    <hr style="width:100%; border:0.5px solid #333; margin: 12px 0;">
+    <input type="text" id="room-id-input" class="room-input" placeholder="Enter Room Code (e.g. 1234)" value="ufw_room_1">
+    <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Host / Join PVP Match</button>
 </div>
 
-<!-- 2. 기존 게임 영역 (초기 상태 숨김) -->
 <div id="game-wrapper" style="display: none;">
     <div id="status-panel">
         <div id="status-text">To start the game, choose your faction!</div>
@@ -222,11 +224,9 @@
     const statusText = document.getElementById('status-text');
     const buttonZone = document.getElementById('button-zone');
 
-    // 모드 관련 변수
-    let gameMode = "PVC"; // "PVC" 또는 "PVP"
+    let gameMode = "PVC";
     let peer = null, conn = null;
     let isHost = false;
-    let pvpMyTurn = false;
 
     const PIECE_DATABASE = {
         Dragon: {
@@ -265,11 +265,8 @@
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
     let selectedCell = null; 
     let validMoves = [];     
-
-    // [3회 동형 반복 확인용 시스템 배열]
     let boardHistory = [];
 
-    // --- 메인 메뉴 컨트롤 및 PVP 매치메이킹 연동 ---
     function startPVCMode() {
         gameMode = "PVC";
         document.getElementById('main-menu').style.display = 'none';
@@ -279,26 +276,28 @@
 
     function startPVPMode() {
         gameMode = "PVP";
+        const roomCode = document.getElementById('room-id-input').value.trim() || "ufw_default_room";
+        const fullRoomId = "ufw_match_" + roomCode;
+
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('game-wrapper').style.display = 'block';
         createBoard();
 
-        statusText.innerHTML = "🔍 Searching for an online opponent...";
+        statusText.innerHTML = `🔍 Connecting to room <b>${roomCode}</b>...`;
         buttonZone.innerHTML = "";
 
-        const roomId = "ufw_match_public_room_v1";
         peer = new Peer();
 
         peer.on('open', () => {
-            const connAttempt = peer.connect(roomId);
+            const connAttempt = peer.connect(fullRoomId);
             
             const timer = setTimeout(() => {
                 peer.destroy();
-                peer = new Peer(roomId);
+                peer = new Peer(fullRoomId);
                 
                 peer.on('open', () => {
                     isHost = true;
-                    statusText.innerHTML = "⌛ Waiting for another player to join...";
+                    statusText.innerHTML = `⌛ Room <b>${roomCode}</b> created. Waiting for opponent...`;
                 });
 
                 peer.on('connection', (c) => {
@@ -306,10 +305,10 @@
                     setupConnection();
                 });
 
-                peer.on('error', () => {
-                    statusText.innerHTML = "Connection error. Please try again.";
+                peer.on('error', (err) => {
+                    statusText.innerHTML = "Connection error. Please refresh and try again.";
                 });
-            }, 2000);
+            }, 1800);
 
             connAttempt.on('open', () => {
                 clearTimeout(timer);
@@ -321,7 +320,7 @@
     }
 
     function setupConnection() {
-        statusText.innerHTML = "🎮 Opponent Found! Choose your faction!";
+        statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
         buttonZone.innerHTML = `
             <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
             <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
@@ -349,7 +348,6 @@
             enemyRace = data.race;
             checkPvpRaceSelected();
         } else if (data.type === 'PLACE_PIECE') {
-            // 상대방이 배치한 좌표를 대칭(7-r, 7-c)으로 내 화면의 상단에 적용
             const mirrorR = 7 - data.r;
             const mirrorC = 7 - data.c;
             boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
@@ -368,7 +366,7 @@
             boardState[fromR][fromC] = null;
             renderPieces();
 
-            checkRepetitionRule('enemy');
+            if (checkRepetitionRule('enemy')) return;
             if (checkGameOver()) return;
 
             turn = "player";
@@ -392,13 +390,11 @@
             if (turn === "player") {
                 statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
             } else {
-                statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's turn...";
+                statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
             }
             recordBoardState();
         }
     }
-
-    // --- 기존 게임 함수 영역 ---
 
     function createBoard() {
         board.innerHTML = "";
@@ -422,7 +418,7 @@
             startTierDraft();
         } else {
             sendNetworkData({ type: 'SELECT_RACE', race: race });
-            statusText.innerHTML = `You chose ${race}. Waiting for opponent to select faction...`;
+            statusText.innerHTML = `Selected <b>${race}</b>. Waiting for opponent...`;
             buttonZone.innerHTML = "";
             if (pvpEnemyRaceSelected) {
                 gameState = "DRAFT_LOOP";
@@ -434,9 +430,9 @@
     function startTierDraft() {
         let totalToPlace = 1;
         if (currentDraftTier === 6) totalToPlace = 8;
-        else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) totalToPlace = 2;
+        else if (currentDraftTier >= 3) totalToPlace = 2;
 
-        statusText.innerHTML = `[You: ${playerRace} vs Enemy: ${enemyRace}]<br>Choose a Tier ${currentDraftTier} piece. (Deploy ${totalToPlace} copies)`;
+        statusText.innerHTML = `[${playerRace} vs ${enemyRace}]<br>Choose Tier ${currentDraftTier} piece. (Deploy ${totalToPlace})`;
         buttonZone.innerHTML = "";
 
         PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
@@ -452,11 +448,11 @@
         playerSelectedPiece = { ...piece, tier: currentDraftTier };
         
         if (currentDraftTier === 6) remainingPlacements = 8;
-        else if (currentDraftTier === 5 || currentDraftTier === 4 || currentDraftTier === 3) remainingPlacements = 2; 
+        else if (currentDraftTier >= 3) remainingPlacements = 2; 
         else remainingPlacements = 1;
 
         buttonZone.innerHTML = "";
-        statusText.innerHTML = `Deploy ${piece.emoji} onto your territory (bottom 2 rows). (Remaining: ${remainingPlacements})`;
+        statusText.innerHTML = `Deploy ${piece.emoji} on bottom 2 rows. (Remaining: ${remainingPlacements})`;
 
         if (gameMode === "PVC") {
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
@@ -477,7 +473,7 @@
     function handleCellClick(row, col) {
         if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
             if (row === 6 || row === 7) {
-                if (boardState[row][col]) return; // 이미 기물이 있으면 무시
+                if (boardState[row][col]) return;
                 boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
                 
                 if (gameMode === "PVC") {
@@ -497,7 +493,7 @@
                 remainingPlacements--;
 
                 if (remainingPlacements > 0) {
-                    statusText.innerHTML = `Deploy the remaining copies of ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
+                    statusText.innerHTML = `Deploy remaining ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
                 } else {
                     highlightDraftZone(false);
                     playerSelectedPiece = null;
@@ -509,10 +505,10 @@
                         if (gameMode === "PVC") {
                             gameState = "GAMEPLAY";
                             turn = "player";
-                            statusText.innerHTML = "⚔️ Battle Start! Click your piece, then click any orange cell to move/attack.";
+                            statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
                             recordBoardState();
                         } else {
-                            statusText.innerHTML = "Waiting for opponent to finish deploying units...";
+                            statusText.innerHTML = "Waiting for opponent to finish deploying...";
                             pvpCheckStartGame();
                         }
                     }
@@ -543,14 +539,13 @@
                     });
                 }
 
-                // 유저 이동 후 동일 판이 발생했는지 감지
                 if (checkRepetitionRule('player')) return;
                 if (checkGameOver()) return;
 
                 turn = "enemy";
                 if (gameMode === "PVC") {
-                    statusText.innerHTML = "🤖 Computer is thinking...";
-                    setTimeout(enemyTurn, 1000);
+                    statusText.innerHTML = "🤖 Computer thinking...";
+                    setTimeout(enemyTurn, 800);
                 } else {
                     statusText.innerHTML = " Waiting for opponent's turn...";
                 }
@@ -694,7 +689,6 @@
 
             renderPieces();
 
-            // 컴퓨터 이동 후 동일 판 발생 감지
             if (checkRepetitionRule('enemy')) return;
             if (checkGameOver()) return;
 
@@ -705,7 +699,6 @@
         }
     }
 
-    // [동형 반복 연산 시스템 함수]
     function recordBoardState() {
         let snapshot = "";
         for (let r = 0; r < 8; r++) {
@@ -729,10 +722,11 @@
             }
         }
         if (count >= 3) {
+            const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
             if (mover === 'player') {
-                endGame("Computer Wins! (You lost by Threefold Repetition Rule)");
+                endGame(`${enemyLabel} Wins! (Lost by Threefold Repetition)`);
             } else {
-                endGame("Victory is yours! (Computer lost by Threefold Repetition Rule)");
+                endGame(`Victory is yours! (${enemyLabel} lost by Threefold Repetition)`);
             }
             return true;
         }
@@ -752,7 +746,8 @@
             }
         }
 
-        if (!playerAlive) { endGame("Computer Wins! You lose."); return true; }
+        const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
+        if (!playerAlive) { endGame(`${enemyLabel} Wins! You lose.`); return true; }
         if (!enemyAlive) { endGame("Victory is yours!"); return true; }
         return false;
     }
