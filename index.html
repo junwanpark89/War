@@ -154,7 +154,6 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     
-    // [핵심 수정 1] 티어별 정확한 기물 수량 (6, 7열 총 16칸을 정확히 채움)
     const TIER_ORDER = [6, 5, 4, 3, 2, 1];
     let tierIndex = 0; 
     let currentDraftTier = 6;
@@ -163,7 +162,6 @@
     let playerChosenPiece = null;      
     let aiChosenPiece = null; 
     
-    // [핵심 수정 2] 내 카운트와 적 카운트를 완전히 분리하여 각자 로컬에서만 셉니다.
     let playerTierPlacedCount = 0;
     let enemyTierPlacedCount = 0;  
 
@@ -278,15 +276,14 @@
         } else if (data.type === 'BOTH_TIMEOUT') {
             clearTurnTimer(); endGame("Both players failed to choose. Defeat!");
         } else if (data.type === 'PLACE_DRAFT_TURN') {
-            // PVP에서 상대가 유닛을 두면 이쪽으로 신호가 옴. 무조건 +1만 증가시킴 (동기화 꼬임 방지)
             const mirrorR = 7 - data.r;
             const mirrorC = 7 - data.c;
-            boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
+            boardState[mirrorR][mirrorC] = { ...data.piece, tier: currentDraftTier, side: 'enemy' };
             renderPieces();
 
             enemyTierPlacedCount++; 
             draftTurn = "player"; 
-            advanceDraftState(); // 무결성 검증 함수 호출
+            advanceDraftState(); 
         } else if (data.type === 'MOVE') {
             clearTurnTimer();
             const fromR = 7 - data.from.r; const fromC = 7 - data.from.c;
@@ -319,7 +316,6 @@
             tierIndex = 0; currentDraftTier = TIER_ORDER[tierIndex];
             playerChosenPiece = null; aiChosenPiece = null;
             playerTierPlacedCount = 0; enemyTierPlacedCount = 0;
-            // Host(또는 PVC 플레이어)가 항상 선 픽
             draftTurn = (gameMode === "PVC" || isHost) ? "player" : "enemy";
             startDraftTurn();
         }
@@ -355,11 +351,9 @@
         }
     }
 
-    // [핵심 수정 3] 강력한 상태 통제 함수 (양 플레이어 모두 필요 수량을 100% 채웠을 때만 티어 이동)
     function advanceDraftState() {
         let required = TIER_PER_PLAYER_COUNTS[currentDraftTier];
         
-        // 8대8, 2대2, 1대1 등 양쪽이 완벽하게 숫자를 채웠을 경우에만 티어 승급
         if (playerTierPlacedCount >= required && enemyTierPlacedCount >= required) {
             playerChosenPiece = null;
             aiChosenPiece = null;
@@ -374,7 +368,6 @@
                 finishDraftAndStartGame();
             }
         } else {
-            // 아직 양쪽 중 한 명이라도 덜 채웠으면 그대로 진행
             startDraftTurn();
         }
     }
@@ -393,24 +386,21 @@
                     const btn = document.createElement('button');
                     btn.className = "choice-btn";
                     btn.innerHTML = `${piece.emoji} ${piece.name}`;
-                    btn.onclick = () => { playerChosenPiece = piece; startDraftTurn(); };
+                    // 기물을 선택하는 순간 playerChosenPiece에 고정되며, 변경할 수 있는 취소 버튼은 아예 만들지 않습니다!
+                    btn.onclick = () => { 
+                        playerChosenPiece = piece; 
+                        startDraftTurn(); 
+                    };
                     buttonZone.appendChild(btn);
                 });
             } else {
                 statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Place ${playerChosenPiece.emoji} (Need ${remaining} more) on Rows 6-7.`;
                 highlightDraftZone(true);
-                
-                const btn = document.createElement('button');
-                btn.className = "choice-btn";
-                btn.style.backgroundColor = "#747d8c";
-                btn.innerHTML = `🔄 Change Unit Type`;
-                btn.onclick = () => { playerChosenPiece = null; startDraftTurn(); };
-                buttonZone.appendChild(btn);
             }
         } else {
             if (gameMode === "PVC") {
                 statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Computer is placing its unit...`;
-                setTimeout(aiPerformDraftTurn, 400); // AI도 딱 1개만 두고 턴 넘김
+                setTimeout(aiPerformDraftTurn, 400); 
             } else {
                 statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Waiting for opponent to place...`;
             }
@@ -430,16 +420,15 @@
         if (gameState === "DRAFT_LOOP") {
             if (draftTurn !== "player" || !playerChosenPiece) return;
 
-            // 드래프트 페이즈 클릭 처리
             if (row === 6 || row === 7) {
-                if (boardState[row][col]) return; // 이미 기물이 있으면 무시
+                if (boardState[row][col]) return; 
 
                 const placedPiece = playerChosenPiece;
-                boardState[row][col] = { ...placedPiece, side: 'player' };
+                boardState[row][col] = { ...placedPiece, tier: currentDraftTier, side: 'player' };
                 renderPieces();
                 highlightDraftZone(false);
                 
-                playerTierPlacedCount++; // 무조건 내 컴퓨터 안에서만 +1 카운트
+                playerTierPlacedCount++; 
 
                 if (gameMode === "PVP") {
                     sendNetworkData({
@@ -450,7 +439,6 @@
                     });
                 }
 
-                // 내가 1개를 뒀으니 턴을 무조건 상대에게 넘기고 상태 검증
                 draftTurn = "enemy"; 
                 advanceDraftState(); 
             }
@@ -501,7 +489,6 @@
         }
     }
 
-    // AI 드래프트 로직 수정 (한 번에 다 깔지 않고 정확히 1개 두고 턴 넘기기)
     function aiPerformDraftTurn() {
         if (!aiChosenPiece) {
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
@@ -509,7 +496,7 @@
         }
 
         let emptySpots = [];
-        for (let r = 0; r <= 1; r++) { // AI는 0, 1열에만 배치
+        for (let r = 0; r <= 1; r++) { 
             for (let c = 0; c < 8; c++) {
                 if (!boardState[r][c]) emptySpots.push({r, c});
             }
@@ -522,7 +509,6 @@
             enemyTierPlacedCount++;
         }
 
-        // AI가 1개를 뒀으니 플레이어에게 턴을 넘기고 상태 검증
         draftTurn = "player";
         advanceDraftState();
     }
