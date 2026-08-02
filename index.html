@@ -194,11 +194,7 @@
 <div id="game-wrapper" style="display: none;">
     <div id="status-panel">
         <div id="status-text">To start the game, choose your faction!</div>
-        <div id="button-zone" class="btn-container">
-            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
-            <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
-            <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
-        </div>
+        <div id="button-zone" class="btn-container"></div>
     </div>
 
     <div class="chessboard" id="board"></div>
@@ -216,7 +212,6 @@
     let isConnected = false;
     let pollTimer = null;
     
-    // 종족 선택 동기화 상태 변수
     let myRaceSelected = false;
     let enemyRaceSelected = false;
 
@@ -264,6 +259,7 @@
         gameMode = "PVC";
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('game-wrapper').style.display = 'block';
+        showFactionButtons();
         createBoard();
     }
 
@@ -353,24 +349,25 @@
     function setupConnection() {
         if (pollTimer) clearInterval(pollTimer);
         isConnected = true;
+        
+        // 연결 직후 데이터 수신기 철저히 등록
+        conn.on('data', (data) => {
+            handleNetworkData(data);
+        });
+
+        conn.on('close', () => handleOpponentDisconnect());
+        conn.on('error', () => handleOpponentDisconnect());
+
         statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
+        showFactionButtons();
+    }
+
+    function showFactionButtons() {
         buttonZone.innerHTML = `
             <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
             <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
             <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
         `;
-
-        conn.on('data', (data) => {
-            handleNetworkData(data);
-        });
-
-        conn.on('close', () => {
-            handleOpponentDisconnect();
-        });
-
-        conn.on('error', () => {
-            handleOpponentDisconnect();
-        });
     }
 
     function sendNetworkData(data) {
@@ -383,6 +380,11 @@
         if (data.type === 'SELECT_RACE') {
             enemyRace = data.race;
             enemyRaceSelected = true;
+            
+            // 상대가 골랐는데 내가 아직 안 골랐다면 상태만 갱신
+            if (!myRaceSelected) {
+                statusText.innerHTML = `Opponent selected <b>${data.race}</b>. Please choose your faction!`;
+            }
             checkBothRacesSelected();
         } else if (data.type === 'PLACE_PIECE') {
             const mirrorR = 7 - data.r;
@@ -633,7 +635,7 @@
                     statusText.innerHTML = "🤖 Computer thinking...";
                     setTimeout(enemyTurn, 800);
                 } else {
-                    statusText.innerHTML = " Waiting for opponent's turn...";
+                    statusText.innerHTML = "⏳ Waiting for opponent's turn...";
                 }
                 return; 
             } 
