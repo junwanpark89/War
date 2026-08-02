@@ -249,7 +249,7 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     
-    // 철저한 티어 진행 제어 변수들
+    // 티어 순서 및 필수 수량 고정 정의
     const TIER_ORDER = [6, 5, 4, 3, 2, 1];
     let tierIndex = 0; 
     let currentDraftTier = 6;
@@ -644,7 +644,7 @@
                     tierChosenPiece = null;
                     currentTierPlacedCount = 0;
                     if (tierIndex < TIER_ORDER.length - 1) {
-                        tierIndex++; // 정확히 다음 티어로 인덱스 1단계씩만 전진
+                        tierIndex++; // 정확히 다음 티어로 1단계씩 전진
                         currentDraftTier = TIER_ORDER[tierIndex];
                         tierChanged = true;
                         nextTierIndexVal = tierIndex;
