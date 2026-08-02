@@ -215,6 +215,10 @@
     let myRaceSelected = false;
     let enemyRaceSelected = false;
 
+    // 타이머 관련 변수
+    let turnTimer = null;
+    let timeLeft = 0;
+
     const PIECE_DATABASE = {
         Dragon: {
             6: [{name:"Fire Spirit", emoji:"💥"}, {name:"Magma Slime", emoji:"🍮"}, {name:"Baby Wyvern", emoji:"🦅"}],
@@ -255,6 +259,34 @@
     let validMoves = [];     
     let boardHistory = [];
 
+    function clearTurnTimer() {
+        if (turnTimer) {
+            clearInterval(turnTimer);
+            turnTimer = null;
+        }
+    }
+
+    function startTurnTimer(seconds, onTimeout) {
+        clearTurnTimer();
+        if (gameMode !== "PVP") return; // PVC는 타이머 제외 (원하시면 추가 가능)
+        
+        timeLeft = seconds;
+        turnTimer = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay();
+            if (timeLeft <= 0) {
+                clearTurnTimer();
+                onTimeout();
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        if (gameState === "GAMEOVER") return;
+        const baseText = statusText.innerHTML.replace(/ ⏱️ \d+s$/, '');
+        statusText.innerHTML = `${baseText} ⏱️ ${timeLeft}s`;
+    }
+
     function startPVCMode() {
         gameMode = "PVC";
         document.getElementById('main-menu').style.display = 'none';
@@ -271,6 +303,7 @@
         enemyRaceSelected = false;
         playerRace = "";
         enemyRace = "";
+        clearTurnTimer();
 
         if (pollTimer) clearInterval(pollTimer);
 
@@ -295,7 +328,6 @@
             requestMatchmaking(myPeerId);
         });
 
-        // 게스트가 접속해올 때의 연결 수신 대기 (Host 역할)
         peer.on('connection', (c) => {
             conn = c;
             isHost = true;
@@ -320,7 +352,6 @@
                     if (data.isHost) {
                         isHost = true;
                         statusText.innerHTML = "⌛ Opponent found! Waiting for connection...";
-                        // peer.on('connection')에서 연결을 받도록 대기
                     } else {
                         isHost = false;
                         statusText.innerHTML = "⚔️ Opponent found! Connecting...";
@@ -342,6 +373,7 @@
 
     function handleOpponentDisconnect() {
         if (pollTimer) clearInterval(pollTimer);
+        clearTurnTimer();
         if (!isConnected || isDisconnectedHandled) return;
         isDisconnectedHandled = true;
         
@@ -388,7 +420,11 @@
                 statusText.innerHTML = `Opponent selected <b>${data.race}</b>. Please choose your faction!`;
             }
             checkBothRacesSelected();
+        } else if (data.type === 'TIMEOUT_LOSE') {
+            clearTurnTimer();
+            endGame("Victory is yours! (Opponent ran out of time)");
         } else if (data.type === 'PLACE_PIECE') {
+            clearTurnTimer();
             const mirrorR = 7 - data.r;
             const mirrorC = 7 - data.c;
             boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
@@ -401,6 +437,7 @@
                 turn = isHost ? "player" : "enemy";
                 if (turn === "player") {
                     statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
+                    startTurnTimer(60, handleTimeOut);
                 } else {
                     statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
                 }
@@ -409,6 +446,7 @@
                 updatePvpDraftStatus();
             }
         } else if (data.type === 'MOVE') {
+            clearTurnTimer();
             const fromR = 7 - data.from.r;
             const fromC = 7 - data.from.c;
             const toR = 7 - data.to.r;
@@ -423,7 +461,14 @@
 
             turn = "player";
             statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+            startTurnTimer(60, handleTimeOut);
         }
+    }
+
+    function handleTimeOut() {
+        clearTurnTimer();
+        sendNetworkData({ type: 'TIMEOUT_LOSE' });
+        endGame("Defeat! (Time out)");
     }
 
     function checkBothRacesSelected() {
@@ -507,7 +552,9 @@
         if (isMyTurn) {
             statusText.innerHTML = `Deploy ${playerSelectedPiece.emoji} on bottom 2 rows. (Your Turn - Remaining: ${remainingPlacements})`;
             highlightDraftZone(true);
+            startTurnTimer(10, handleTimeOut);
         } else {
+            clearTurnTimer();
             statusText.innerHTML = `Waiting for opponent to deploy a piece... (Remaining: ${remainingPlacements})`;
             highlightDraftZone(false);
         }
@@ -531,6 +578,7 @@
                     if (!isMyTurn) return; 
                 }
 
+                clearTurnTimer();
                 boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
                 
                 if (gameMode === "PVC") {
@@ -584,6 +632,7 @@
                         highlightDraftZone(false);
                         if (turn === "player") {
                             statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
+                            startTurnTimer(60, handleTimeOut);
                         } else {
                             statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
                         }
@@ -596,6 +645,7 @@
                                 currentDraftTier--;
                                 startTierDraft();
                                 draftTurn = nextTurn;
+                                updatePvpDraftStatus();
                                 return;
                             }
                         }
@@ -612,6 +662,7 @@
             const activePiece = selectedCell ? boardState[selectedCell.r][selectedCell.c] : null;
 
             if (activePiece && activePiece.side === 'player' && validMoves.some(m => m.r === row && m.c === col)) {
+                clearTurnTimer();
                 const from = selectedCell;
                 
                 boardState[row][col] = boardState[from.r][from.c];
@@ -843,6 +894,7 @@
     }
 
     function endGame(message) {
+        clearTurnTimer();
         statusText.innerHTML = `🏆 <b>${message}</b>`;
         buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Return to Main Menu</button>`;
         gameState = "GAMEOVER";
