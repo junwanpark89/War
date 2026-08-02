@@ -249,7 +249,7 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     
-    // 티어 순서 및 필수 수량 고정 (6 -> 5 -> 4 -> 3 -> 2 -> 1 순서 엄격 준수)
+    // 명확하게 6부터 1까지 순차적으로 진행되는 티어 배열
     const TIER_ORDER = [6, 5, 4, 3, 2, 1];
     let tierIndex = 0; 
     let currentDraftTier = 6;
@@ -487,6 +487,7 @@
             const toR = 7 - data.to.r;
             const toC = 7 - data.to.c;
 
+            boardState[toR][toC] = boardState[fromR][fromR ? fromR : fromR][fromC]; // safe indices below
             boardState[toR][toC] = boardState[fromR][fromC];
             boardState[fromR][fromC] = null;
             renderPieces();
@@ -650,7 +651,9 @@
                     }
                 }
 
-                let finishedAll = (tierIndex === TIER_ORDER.length - 1 && tierFinished && countPlayerPieces() >= 16);
+                // 총 16개의 기물이 모두 채워졌는지 확인 (8+2+2+2+1+1 = 16)
+                let totalPlayerPieces = countPlayerPieces();
+                let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && tierFinished && totalPlayerPieces >= 16);
 
                 if (gameMode === "PVC") {
                     if (finishedAll) {
@@ -809,7 +812,8 @@
             }
         }
 
-        let finishedAll = (tierIndex === TIER_ORDER.length - 1 && aiTierFinished && countEnemyPieces() >= 16);
+        let totalEnemyPieces = countEnemyPieces();
+        let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && aiTierFinished && totalEnemyPieces >= 16);
 
         if (finishedAll) {
             gameState = "GAMEPLAY";
