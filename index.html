@@ -210,20 +210,23 @@
     function showCustomMenu() {
         document.getElementById('main-menu').innerHTML = `
             <h1>Cosmageddon</h1>
-            <p style="font-size: 13px; color: #a4b0be; margin-bottom: 12px;">Enter a room code to play with a friend.</p>
-            <input type="text" id="room-code-input" placeholder="Room Code (e.g. friend123)" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: none; box-sizing: border-box; text-align: center; font-size: 14px; background: #2f3542; color: white;">
-            <button class="menu-btn btn-custom" onclick="startCustomPVP()">Join / Create Room</button>
-            <button class="menu-btn" style="background-color: #57606f; margin-top: 6px;" onclick="location.reload()">Back</button>
+            <p style="font-size: 13px; color: #a4b0be; margin-bottom: 12px;">한글, 영어, 이모지 등 원하는 방 코드를 입력하세요.</p>
+            <input type="text" id="room-code-input" placeholder="방 코드 (예: 우리방123, 🚀)" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: none; box-sizing: border-box; text-align: center; font-size: 14px; background: #2f3542; color: white;">
+            <button class="menu-btn btn-custom" onclick="startCustomPVP()">방 만들기 / 들어가기</button>
+            <button class="menu-btn" style="background-color: #57606f; margin-top: 6px;" onclick="location.reload()">뒤로 가기</button>
         `;
     }
 
     function startCustomPVP() {
         const codeInput = document.getElementById('room-code-input');
-        const roomCode = codeInput ? codeInput.value.trim() : '';
-        if (!roomCode) {
-            alert("Please enter a room code!");
+        const rawRoomCode = codeInput ? codeInput.value.trim() : '';
+        if (!rawRoomCode) {
+            alert("방 코드를 입력해주세요!");
             return;
         }
+
+        // 한글, 이모지 등 어떤 나라 언어든 안전한 ASCII 문자열(Base64)로 변환
+        const roomCode = btoa(unescape(encodeURIComponent(rawRoomCode)));
 
         gameMode = "PVP";
         isDisconnectedHandled = false; isConnected = false;
@@ -241,7 +244,7 @@
         document.getElementById('game-wrapper').style.display = 'block';
         createBoard();
 
-        statusText.innerHTML = `🔍 Creating room [${roomCode}]...`;
+        statusText.innerHTML = `🔍 방 생성 중 [${rawRoomCode}]...`;
         buttonZone.innerHTML = "";
 
         const targetPeerId = `cosmageddon_room_${roomCode}`;
@@ -255,10 +258,9 @@
         peer.on('open', (id) => {
             isHost = true;
             myRole = 'host';
-            statusText.innerHTML = `⏳ <b>Waiting for friend...</b> (Room: ${roomCode})`;
+            statusText.innerHTML = `⏳ <b>친구를 기다리는 중...</b> (방: ${rawRoomCode})`;
         });
 
-        // 방장 측: 누군가 들어왔을 때 데이터 채널이 완전히 열린 후 역할 부여 전송
         peer.on('connection', (c) => {
             if (isHost) {
                 let assignedRole = '';
@@ -297,7 +299,7 @@
         peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
                 peer.destroy();
-                statusText.innerHTML = `⚔️ Room found! Connecting...`;
+                statusText.innerHTML = `⚔️ 방을 찾았습니다! 접속 중...`;
 
                 peer = new Peer({ host: 'cosmageddon-server.onrender.com', port: 443, path: '/peerjs', secure: true });
                 peer.on('open', () => {
@@ -306,18 +308,18 @@
                     
                     conn.on('open', () => {
                         isConnected = true;
-                        statusText.innerHTML = `🔗 Connected to room. Verifying role...`;
+                        statusText.innerHTML = `🔗 방에 연결되었습니다. 역할 확인 중...`;
                     });
 
                     conn.on('data', (data) => {
                         if (data.type === 'ASSIGN_ROLE') {
                             myRole = data.role;
                             if (myRole === 'guest') {
-                                statusText.innerHTML = `🎮 Connected as Guest! Choose your faction within 5s:`;
+                                statusText.innerHTML = `🎮 게스트로 입장 완료! 5초 안에 종족을 선택하세요:`;
                                 showFactionButtons();
                                 startTurnTimer(5, handleRaceSelectionTimeout);
                             } else if (myRole === 'spectator') {
-                                statusText.innerHTML = `👀 <b>Spectating Match</b> (Read-only)`;
+                                statusText.innerHTML = `👀 <b>관전 모드 진입</b> (읽기 전용)`;
                                 buttonZone.innerHTML = "";
                                 boardState = data.boardState;
                                 playerRace = data.playerRace;
@@ -364,12 +366,12 @@
         document.getElementById('game-wrapper').style.display = 'block';
         createBoard();
 
-        statusText.innerHTML = "🔍 Connecting to server...";
+        statusText.innerHTML = "🔍 서버 연결 중...";
         buttonZone.innerHTML = "";
 
         peer = new Peer({ host: 'cosmageddon-server.onrender.com', port: 443, path: '/peerjs', secure: true });
         peer.on('open', (myPeerId) => {
-            statusText.innerHTML = "🔍 Looking for an opponent...";
+            statusText.innerHTML = "🔍 상대방 매칭 중...";
             requestMatchmaking(myPeerId);
         });
         peer.on('connection', (c) => { 
@@ -390,10 +392,10 @@
                     if (pollTimer) clearInterval(pollTimer);
                     if (data.isHost) {
                         isHost = true; myRole = 'host';
-                        statusText.innerHTML = "⌛ Opponent found! Waiting for connection...";
+                        statusText.innerHTML = "⌛ 상대 발견! 연결 대기 중...";
                     } else {
                         isHost = false; myRole = 'guest';
-                        statusText.innerHTML = "⚔️ Opponent found! Connecting...";
+                        statusText.innerHTML = "⚔️ 상대 발견! 접속 중...";
                         conn = peer.connect(data.opponentId);
                         guestConn = conn;
                         conn.on('open', setupConnection);
@@ -406,9 +408,9 @@
         if (pollTimer) clearInterval(pollTimer); clearTurnTimer();
         if (!isConnected || isDisconnectedHandled) return;
         isDisconnectedHandled = true;
-        statusText.innerHTML = "⚠️ <b>Opponent Disconnected!</b>";
-        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Return to Main Menu</button>`;
-        alert("Opponent has disconnected from the match.");
+        statusText.innerHTML = "⚠️ <b>상대방과의 연결이 끊겼습니다!</b>";
+        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">메인 메뉴로 돌아가기</button>`;
+        alert("상대방이 게임에서 나갔습니다.");
     }
 
     function setupConnection() {
@@ -417,7 +419,7 @@
         conn.on('data', handleNetworkData);
         conn.on('close', handleOpponentDisconnect);
         conn.on('error', handleOpponentDisconnect);
-        statusText.innerHTML = "🎮 Connected! Choose your faction within 5s:";
+        statusText.innerHTML = "🎮 연결 완료! 5초 안에 종족을 선택하세요:";
         showFactionButtons();
         startTurnTimer(5, handleRaceSelectionTimeout);
     }
@@ -425,7 +427,7 @@
     function setupHostConnection(connection, role) {
         isConnected = true;
         if (role === 'guest') {
-            statusText.innerHTML = "🎮 Friend Joined! Choose your faction within 5s:";
+            statusText.innerHTML = "🎮 친구 입장 완료! 5초 안에 종족을 선택하세요:";
             showFactionButtons();
             startTurnTimer(5, handleRaceSelectionTimeout);
         }
@@ -456,9 +458,9 @@
     function showFactionButtons() {
         if (myRole === 'spectator') return;
         buttonZone.innerHTML = `
-            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
-            <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
-            <button class="choice-btn" onclick="selectRace('Human')">👱 Human</button>
+            <button class="choice-btn" onclick="selectRace('Dragon')">🐉 드래곤</button>
+            <button class="choice-btn" onclick="selectRace('Elf')">🧝 엘프</button>
+            <button class="choice-btn" onclick="selectRace('Human')">👱 휴먼</button>
         `;
     }
 
@@ -474,7 +476,7 @@
     function handleNetworkData(data) {
         if (data.type === 'SELECT_RACE') {
             enemyRace = data.race; enemyRaceSelected = true;
-            if (!myRaceSelected && myRole !== 'spectator') statusText.innerHTML = `Opponent selected <b>${data.race}</b>. Please choose your faction!`;
+            if (!myRaceSelected && myRole !== 'spectator') statusText.innerHTML = `상대가 <b>${data.race}</b>을(를) 선택했습니다. 종족을 골라주세요!`;
             checkBothRacesSelected();
         } else if (data.type === 'TIER_CHOICE') {
             if (data.tier === currentDraftTier) {
@@ -483,9 +485,9 @@
                 checkBothTierChosen();
             }
         } else if (data.type === 'TIMEOUT_LOSE') {
-            clearTurnTimer(); endGame("Victory is yours! (Opponent ran out of time)");
+            clearTurnTimer(); endGame("승리하셨습니다! (상대 시간 초과)");
         } else if (data.type === 'BOTH_TIMEOUT') {
-            clearTurnTimer(); endGame("Both players failed to choose. Defeat!");
+            clearTurnTimer(); endGame("두 플레이어 모두 시간 초과로 패배!");
         } else if (data.type === 'PLACE_DRAFT_TURN') {
             clearTurnTimer();
             const mirrorR = 7 - data.r;
@@ -510,7 +512,7 @@
 
             turn = "player";
             if (myRole !== 'spectator') {
-                statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+                statusText.innerHTML = "⚔️ 내 차례! 이동할 기물을 선택하세요.";
                 startTurnTimer(30, handleTimeOut);
             }
         }
@@ -521,11 +523,11 @@
         if (gameMode !== "PVP" || myRole === 'spectator') return;
         if (!myRaceSelected && !enemyRaceSelected) { 
             sendNetworkData({ type: 'BOTH_TIMEOUT' }); 
-            endGame("Both players failed to choose. Defeat!"); 
+            endGame("두 플레이어 모두 시간 초과로 패배!"); 
         }
         else if (!myRaceSelected) { 
             sendNetworkData({ type: 'TIMEOUT_LOSE' }); 
-            endGame("Defeat! (Time out)"); 
+            endGame("패배! (시간 초과)"); 
         }
     }
 
@@ -533,14 +535,14 @@
         clearTurnTimer();
         if (gameMode !== "PVP" || myRole === 'spectator') return;
         sendNetworkData({ type: 'TIMEOUT_LOSE' });
-        endGame("Defeat! (Time out)");
+        endGame("패배! (시간 초과)");
     }
 
     function handleTimeOut() { 
         clearTurnTimer(); 
         if (gameMode !== "PVP" || myRole === 'spectator') return;
         sendNetworkData({ type: 'TIMEOUT_LOSE' }); 
-        endGame("Defeat! (Time out)"); 
+        endGame("패배! (시간 초과)"); 
     }
 
     function checkBothRacesSelected() {
@@ -580,7 +582,7 @@
             checkBothRacesSelected();
         } else {
             sendNetworkData({ type: 'SELECT_RACE', race: race });
-            statusText.innerHTML = `Selected <b>${race}</b>. Waiting for friend...`;
+            statusText.innerHTML = `<b>${race}</b> 선택 완료. 상대 기다리는 중...`;
             buttonZone.innerHTML = "";
             checkBothRacesSelected();
         }
@@ -619,12 +621,12 @@
             if (!tierChoiceMade) {
                 let draftTimeLimit = (currentDraftTier === 6) ? 5 : 10;
                 if (gameMode === "PVP" && myRole !== 'spectator') {
-                    statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Simultaneous Draft</b><br>Choose your unit within ${draftTimeLimit}s!`;
+                    statusText.innerHTML = `🛡️ <b>티어 ${currentDraftTier} 동시 드래프트</b><br>${draftTimeLimit}초 안에 기물을 선택하세요!`;
                     startTurnTimer(draftTimeLimit, handleTierChoiceTimeout);
                 } else if (myRole === 'spectator') {
-                    statusText.innerHTML = `👀 <b>Tier ${currentDraftTier} Simultaneous Draft</b> (Spectating)`;
+                    statusText.innerHTML = `👀 <b>티어 ${currentDraftTier} 동시 드래프트</b> (관전 중)`;
                 } else {
-                    statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Choose your unit!`;
+                    statusText.innerHTML = `🛡️ <b>티어 ${currentDraftTier} 드래프트</b><br>기물을 선택하세요!`;
                 }
 
                 if (myRole === 'spectator') return;
@@ -646,8 +648,8 @@
                         myTierTime = (gameMode === "PVP") ? (draftTimeLimit - timeLeft) : 1;
                         clearTurnTimer();
                         
-                        buttonZone.innerHTML = `<div>Selected ${piece.emoji} ${piece.name}. Waiting...</div>`;
-                        statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Choice locked! Waiting...`;
+                        buttonZone.innerHTML = `<div>${piece.emoji} ${piece.name} 선택 완료. 대기 중...</div>`;
+                        statusText.innerHTML = `🛡️ <b>티어 ${currentDraftTier} 드래프트</b><br>선택 완료! 대기 중...`;
 
                         if (gameMode === "PVC") {
                             resolveTierChoiceOrder();
@@ -663,18 +665,18 @@
             let required = TIER_PER_PLAYER_COUNTS[currentDraftTier];
             let remaining = required - playerTierPlacedCount;
             if (myRole === 'spectator') {
-                statusText.innerHTML = `👀 <b>Tier ${currentDraftTier} Placement</b> (Spectating)`;
+                statusText.innerHTML = `👀 <b>티어 ${currentDraftTier} 배치</b> (관전 중)`;
                 highlightDraftZone(false);
                 return;
             }
             if (draftTurn === "player") {
-                statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Placement</b><br>Place ${myTierChoice.emoji} (Need ${remaining} more) within 10s on Rows 6-7.`;
+                statusText.innerHTML = `🛡️ <b>티어 ${currentDraftTier} 배치</b><br>${myTierChoice.emoji} 배치 (남은 개수: ${remaining}) - 10초 내 6~7행`;
                 highlightDraftZone(true);
                 if (gameMode === "PVP") {
                     startTurnTimer(10, handleDraftTimeout);
                 }
             } else {
-                statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Placement</b><br>Waiting for opponent to place...`;
+                statusText.innerHTML = `🛡️ <b>티어 ${currentDraftTier} 배치</b><br>상대방이 배치 중입니다...`;
                 highlightDraftZone(false);
                 if (gameMode === "PVP") {
                     startTurnTimer(10, () => {});
@@ -714,10 +716,10 @@
         if (gameMode !== "PVP" || myRole === 'spectator') return;
         if (!tierChoiceMade && !enemyTierChoice) {
             sendNetworkData({ type: 'BOTH_TIMEOUT' });
-            endGame(`Both failed to choose Tier ${currentDraftTier} in time. Defeat!`);
+            endGame(`티어 ${currentDraftTier} 선택 시간 초과. 패배!`);
         } else if (!tierChoiceMade) {
             sendNetworkData({ type: 'TIMEOUT_LOSE' });
-            endGame("Defeat! (Time out)");
+            endGame("패배! (시간 초과)");
         }
     }
 
@@ -784,10 +786,10 @@
 
                 turn = "enemy";
                 if (gameMode === "PVC") {
-                    statusText.innerHTML = "🤖 Computer thinking...";
+                    statusText.innerHTML = "🤖 컴퓨터 생각 중...";
                     setTimeout(enemyTurn, 800);
                 } else {
-                    statusText.innerHTML = "⏳ Waiting for opponent's turn...";
+                    statusText.innerHTML = "⏳ 상대방 턴 대기 중...";
                     startTurnTimer(30, () => {});
                 }
                 return; 
@@ -837,12 +839,12 @@
         turn = (gameMode === "PVP" && !isHost) ? "enemy" : "player"; 
         
         if (myRole === 'spectator') {
-            statusText.innerHTML = "👀 <b>Match in Progress</b> (Spectating)";
+            statusText.innerHTML = "👀 <b>게임 진행 중</b> (관전 중)";
         } else if (turn === "player") {
-            statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click a piece to move.";
+            statusText.innerHTML = "⚔️ 전투 시작! (내 차례) 이동할 기물을 선택하세요.";
             startTurnTimer(30, handleTimeOut);
         } else {
-            statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
+            statusText.innerHTML = "⚔️ 전투 시작! 상대방의 이동을 기다리는 중...";
             if (gameMode === "PVP") startTurnTimer(30, () => {});
         }
         buttonZone.innerHTML = "";
@@ -923,10 +925,10 @@
             if (checkRepetitionRule('enemy') || checkGameOver()) return;
 
             turn = "player";
-            statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+            statusText.innerHTML = "⚔️ 내 차례! 이동할 기물을 선택하세요.";
             startTurnTimer(30, handleTimeOut);
         } else {
-            endGame("Player Wins!");
+            endGame("플레이어 승리!");
         }
     }
 
@@ -946,9 +948,9 @@
         const currentStr = recordBoardState(); let count = 0;
         for (let i = 0; i < boardHistory.length; i++) if (boardHistory[i] === currentStr) count++;
         if (count >= 3) {
-            const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
-            if (mover === 'player') endGame(`${enemyLabel} Wins! (Lost by Threefold Repetition)`);
-            else endGame(`Victory is yours! (${enemyLabel} lost by Threefold Repetition)`);
+            const enemyLabel = gameMode === "PVC" ? "컴퓨터" : "상대방";
+            if (mover === 'player') endGame(`${enemyLabel} 승리! (3회 반복 무승부 규정)`);
+            else endGame(`승리하셨습니다! (${enemyLabel}가 3회 반복하여 패배)`);
             return true;
         }
         return false;
@@ -964,16 +966,16 @@
                 }
             }
         }
-        const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
-        if (!playerAlive) { endGame(`${enemyLabel} Wins! You lose.`); return true; }
-        if (!enemyAlive) { endGame("Victory is yours!"); return true; }
+        const enemyLabel = gameMode === "PVC" ? "컴퓨터" : "상대방";
+        if (!playerAlive) { endGame(`${enemyLabel} 승리! 패배했습니다.`); return true; }
+        if (!enemyAlive) { endGame("승리하셨습니다!"); return true; }
         return false;
     }
 
     function endGame(message) {
         clearTurnTimer();
         statusText.innerHTML = `🏆 <b>${message}</b>`;
-        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Return to Main Menu</button>`;
+        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">메인 메뉴로 돌아가기</button>`;
         gameState = "GAMEOVER";
     }
 
