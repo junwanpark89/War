@@ -249,7 +249,7 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     
-    // 티어 순서 및 필수 수량 고정 (6 -> 5 -> 4 -> 3 -> 2 -> 1 순서 절대 보장)
+    // 티어 순서 및 필수 수량 고정 (6 -> 5 -> 4 -> 3 -> 2 -> 1 순서 엄격 준수)
     const TIER_ORDER = [6, 5, 4, 3, 2, 1];
     let tierIndex = 0; 
     let currentDraftTier = 6;
@@ -643,7 +643,7 @@
                     tierChosenPiece = null;
                     currentTierPlacedCount = 0;
                     if (tierIndex < TIER_ORDER.length - 1) {
-                        tierIndex++; // 정확히 다음 티어로 1단계씩 전진 (6 -> 5 -> 4 -> 3 -> 2 -> 1 순서 철저 보장)
+                        tierIndex++; 
                         currentDraftTier = TIER_ORDER[tierIndex];
                         tierChanged = true;
                         nextTierIndexVal = tierIndex;
@@ -771,7 +771,6 @@
 
     let aiTierChosenPiece = null;
     let aiTierPlacedCount = 0;
-    let aiTierIndex = 0;
 
     function aiChooseTierPiece() {
         const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
@@ -804,8 +803,9 @@
         if (aiTierFinished) {
             aiTierChosenPiece = null;
             aiTierPlacedCount = 0;
-            if (aiTierIndex < TIER_ORDER.length - 1) {
-                aiTierIndex++;
+            if (tierIndex < TIER_ORDER.length - 1) {
+                tierIndex++;
+                currentDraftTier = TIER_ORDER[tierIndex];
             }
         }
 
