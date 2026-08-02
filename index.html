@@ -262,9 +262,9 @@
         conn.on('data', handleNetworkData);
         conn.on('close', handleOpponentDisconnect);
         conn.on('error', handleOpponentDisconnect);
-        statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
+        statusText.innerHTML = "🎮 Opponent Joined! Choose your faction within 5s:";
         showFactionButtons();
-        startTurnTimer(10, handleRaceSelectionTimeout);
+        startTurnTimer(5, handleRaceSelectionTimeout); // 진영 선택 5초로 변경
     }
 
     function showFactionButtons() {
@@ -313,15 +313,21 @@
 
             turn = "player";
             statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
-            startTurnTimer(30, handleTimeOut); // 일반 턴 이동 30초
+            startTurnTimer(30, handleTimeOut);
         }
     }
 
     function handleRaceSelectionTimeout() {
         clearTurnTimer();
         if (gameMode !== "PVP") return;
-        if (!myRaceSelected && !enemyRaceSelected) { sendNetworkData({ type: 'BOTH_TIMEOUT' }); endGame("Defeat!"); }
-        else if (!myRaceSelected) { sendNetworkData({ type: 'TIMEOUT_LOSE' }); endGame("Defeat! (Time out)"); }
+        if (!myRaceSelected && !enemyRaceSelected) { 
+            sendNetworkData({ type: 'BOTH_TIMEOUT' }); 
+            endGame("Both players failed to choose. Defeat!"); 
+        }
+        else if (!myRaceSelected) { 
+            sendNetworkData({ type: 'TIMEOUT_LOSE' }); 
+            endGame("Defeat! (Time out)"); 
+        }
     }
 
     function handleDraftTimeout() {
@@ -411,7 +417,7 @@
                 if (!tier6ChoiceMade) {
                     if (gameMode === "PVP") {
                         statusText.innerHTML = `🛡️ <b>Tier 6 Simultaneous Draft</b><br>Choose your unit within 5s!`;
-                        startTurnTimer(5, handleTier6Timeout); // 티어 6 선택만 5초로 변경
+                        startTurnTimer(5, handleTier6Timeout);
                     } else {
                         statusText.innerHTML = `🛡️ <b>Tier 6 Draft</b><br>Choose your unit! (No time limit)`;
                     }
@@ -429,7 +435,7 @@
                             if (tier6ChoiceMade) return;
                             tier6ChoiceMade = true;
                             myTier6Choice = piece;
-                            myTier6Time = (gameMode === "PVP") ? (5 - timeLeft) : 0; // 5초 기준 경과 시간 계산
+                            myTier6Time = (gameMode === "PVP") ? (5 - timeLeft) : 0;
                             clearTurnTimer();
                             
                             buttonZone.innerHTML = `<div>Selected ${piece.emoji} ${piece.name}. Waiting...</div>`;
@@ -446,7 +452,6 @@
                     });
                 }
             } else {
-                // Tier 6 Placing Phase
                 let required = 8;
                 let remaining = required - playerTierPlacedCount;
                 if (draftTurn === "player") {
@@ -461,7 +466,6 @@
                 }
             }
         } else {
-            // Tiers 5 to 1
             if (draftTurn === "player") {
                 let required = TIER_PER_PLAYER_COUNTS[currentDraftTier];
                 let remaining = required - playerTierPlacedCount;
@@ -694,7 +698,7 @@
         
         if (turn === "player") {
             statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click a piece to move.";
-            startTurnTimer(30, handleTimeOut); // 일반 턴 이동 30초
+            startTurnTimer(30, handleTimeOut);
         } else {
             statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
         }
