@@ -249,15 +249,16 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     
-    // 정확한 티어 진행 순서 및 각 티어별 양쪽 합산 총 배치 필요 수량 (티어 6: 8개, 티어 5: 2개, 티어 4: 2개, 티어 3: 2개, 티어 2: 1개, 티어 1: 1개)
+    // 티어 순서 및 각 플레이어가 해당 티어에서 배치해야 하는 정확한 수량 (티어 6: 각 4개씩 총 8개, 티어 5: 각 1개씩 총 2개 등)
     const TIER_ORDER = [6, 5, 4, 3, 2, 1];
     let tierIndex = 0; 
     let currentDraftTier = 6;
-    const TIER_TOTAL_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
+    const TIER_PER_PLAYER_COUNTS = { 6: 4, 5: 1, 4: 1, 3: 1, 2: 1, 1: 1 };
     
     let playerChosenPiece = null;      
     let enemyChosenPiece = null; 
-    let currentTierPlacedTotal = 0; // 현재 티어에서 양플레이어가 배치한 총 횟수
+    let playerTierPlacedCount = 0; // 플레이어가 현재 티어에서 배치한 수량
+    let enemyTierPlacedCount = 0;  // 상대방이 현재 티어에서 배치한 수량
 
     let turn = "player"; 
     let draftTurn = "player"; 
@@ -318,7 +319,8 @@
         currentDraftTier = TIER_ORDER[tierIndex];
         playerChosenPiece = null;
         enemyChosenPiece = null;
-        currentTierPlacedTotal = 0;
+        playerTierPlacedCount = 0;
+        enemyTierPlacedCount = 0;
         clearTurnTimer();
 
         if (pollTimer) clearInterval(pollTimer);
@@ -453,7 +455,8 @@
             boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
             renderPieces();
 
-            currentTierPlacedTotal = data.currentTierPlacedTotal;
+            enemyTierPlacedCount = data.enemyTierPlacedCount;
+            playerTierPlacedCount = data.playerTierPlacedCount;
             tierIndex = data.tierIndex;
             currentDraftTier = TIER_ORDER[tierIndex];
 
@@ -516,7 +519,8 @@
             currentDraftTier = TIER_ORDER[tierIndex];
             playerChosenPiece = null;
             enemyChosenPiece = null;
-            currentTierPlacedTotal = 0;
+            playerTierPlacedCount = 0;
+            enemyTierPlacedCount = 0;
             draftTurn = "player";
             startDraftTurn();
         }
@@ -549,7 +553,8 @@
             currentDraftTier = TIER_ORDER[tierIndex];
             playerChosenPiece = null;
             enemyChosenPiece = null;
-            currentTierPlacedTotal = 0;
+            playerTierPlacedCount = 0;
+            enemyTierPlacedCount = 0;
             draftTurn = "player";
             startDraftTurn();
         } else {
@@ -623,18 +628,25 @@
                 boardState[row][col] = { ...placedPiece, side: 'player' };
                 renderPieces();
                 highlightDraftZone(false);
-                currentTierPlacedTotal++;
+                
+                playerTierPlacedCount++;
+                let requiredPerPlayer = TIER_PER_PLAYER_COUNTS[currentDraftTier];
+                let playerTierFinished = (playerTierPlacedCount >= requiredPerPlayer);
 
-                let targetTotalForTier = TIER_TOTAL_COUNTS[currentDraftTier];
-                let tierFinished = (currentTierPlacedTotal >= targetTotalForTier);
+                // 플레이어가 이번 티어 배치를 다 끝냈을 때, 만약 상대방도 이미 끝냈다면 다음 티어로 전진
+                let tierFinished = playerTierFinished && (enemyTierPlacedCount >= requiredPerPlayer);
 
                 if (tierFinished) {
                     playerChosenPiece = null;
-                    currentTierPlacedTotal = 0;
+                    playerTierPlacedCount = 0;
+                    enemyTierPlacedCount = 0;
                     if (tierIndex < TIER_ORDER.length - 1) {
                         tierIndex++;
                         currentDraftTier = TIER_ORDER[tierIndex];
                     }
+                } else if (playerTierFinished) {
+                    // 플레이어는 다 채웠지만 AI/상대방이 아직 남았다면 기물 선택 리셋만 하고 대기
+                    playerChosenPiece = null;
                 }
 
                 let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && tierFinished);
@@ -646,10 +658,13 @@
                         statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
                         recordBoardState();
                     } else {
-                        if (tierFinished) {
-                            aiChooseTierPiece();
+                        // PVC 모드에서는 AI가 아직 이번 티어 배치를 다 안 끝냈다면 AI가 마저 배치하도록 유도
+                        if (enemyTierPlacedCount < requiredPerPlayer) {
+                            aiPerformDraftTurn();
+                        } else {
+                            draftTurn = "player";
+                            startDraftTurn();
                         }
-                        aiPerformDraftTurn(tierFinished);
                     }
                 } else {
                     sendNetworkData({
@@ -657,7 +672,8 @@
                         r: row,
                         c: col,
                         piece: placedPiece,
-                        currentTierPlacedTotal: currentTierPlacedTotal,
+                        playerTierPlacedCount: playerTierPlacedCount,
+                        enemyTierPlacedCount: enemyTierPlacedCount,
                         tierIndex: tierIndex,
                         finishedAll: finishedAll
                     });
@@ -752,7 +768,7 @@
         aiChosenPiece = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
     }
 
-    function aiPerformDraftTurn(playerTierFinished) {
+    function aiPerformDraftTurn() {
         if (!aiChosenPiece) {
             aiChooseTierPiece();
         }
@@ -770,20 +786,25 @@
         }
         renderPieces();
 
-        currentTierPlacedTotal++;
-        let targetTotalForTier = TIER_TOTAL_COUNTS[currentDraftTier];
-        let aiTierFinished = (currentTierPlacedTotal >= targetTotalForTier);
+        enemyTierPlacedCount++;
+        let requiredPerPlayer = TIER_PER_PLAYER_COUNTS[currentDraftTier];
+        let aiTierFinished = (enemyTierPlacedCount >= requiredPerPlayer);
 
-        if (aiTierFinished) {
+        let tierFinished = aiTierFinished && (playerTierPlacedCount >= requiredPerPlayer);
+
+        if (tierFinished) {
             aiChosenPiece = null;
-            currentTierPlacedTotal = 0;
+            playerTierPlacedCount = 0;
+            enemyTierPlacedCount = 0;
             if (tierIndex < TIER_ORDER.length - 1) {
                 tierIndex++;
                 currentDraftTier = TIER_ORDER[tierIndex];
             }
+        } else if (aiTierFinished) {
+            aiChosenPiece = null;
         }
 
-        let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && aiTierFinished);
+        let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && tierFinished);
 
         if (finishedAll) {
             gameState = "GAMEPLAY";
@@ -791,8 +812,13 @@
             statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
             recordBoardState();
         } else {
-            draftTurn = "player";
-            startDraftTurn();
+            // 만약 AI가 아직 덜 채웠고 플레이어도 끝냈다면 AI가 계속 배치, 아니면 플레이어 턴으로 복귀
+            if (enemyTierPlacedCount < requiredPerPlayer) {
+                setTimeout(aiPerformDraftTurn, 400);
+            } else {
+                draftTurn = "player";
+                startDraftTurn();
+            }
         }
     }
 
