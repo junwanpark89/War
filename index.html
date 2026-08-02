@@ -214,6 +214,7 @@
     let isHost = false;
     let isDisconnectedHandled = false;
     let isConnected = false;
+    let pollTimer = null;
 
     const PIECE_DATABASE = {
         Dragon: {
@@ -262,20 +263,21 @@
         createBoard();
     }
 
+    // === 핵심 수정 부분: PVP 매칭 시스템 ===
     function startPVPMode() {
         gameMode = "PVP";
         isDisconnectedHandled = false;
         isConnected = false;
-        const publicRoomId = "ufw_match_public_room_v1";
+
+        if (pollTimer) clearInterval(pollTimer);
 
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('game-wrapper').style.display = 'block';
         createBoard();
 
-        statusText.innerHTML = "🔍 Looking for opponent...";
+        statusText.innerHTML = "🔍 Connecting to server...";
         buttonZone.innerHTML = "";
 
-        // Render 서버 주소 직접 지정을 통해 올바른 WebSockets 백엔드로 접속
         const peerConfig = {
             host: 'cosmageddon-server.onrender.com',
             port: 443,
@@ -283,40 +285,59 @@
             secure: true
         };
 
+        // 내 고유 ID로 Peer 서버 접속
         peer = new Peer(peerConfig);
 
-        peer.on('open', () => {
-            const connAttempt = peer.connect(publicRoomId, peerConfig);
-            
-            const timer = setTimeout(() => {
-                peer.destroy();
-                peer = new Peer(publicRoomId, peerConfig);
-                
-                peer.on('open', () => {
-                    isHost = true;
-                    statusText.innerHTML = "⌛ Waiting for an opponent to join...";
-                });
-
-                peer.on('connection', (c) => {
-                    conn = c;
-                    setupConnection();
-                });
-            }, 1500);
-
-            connAttempt.on('open', () => {
-                clearTimeout(timer);
-                conn = connAttempt;
-                isHost = false;
-                setupConnection();
-            });
+        peer.on('open', (myPeerId) => {
+            statusText.innerHTML = "🔍 Looking for an opponent...";
+            requestMatchmaking(myPeerId);
         });
 
         peer.on('error', (err) => {
+            console.error(err);
             handleOpponentDisconnect();
         });
     }
 
+    // 서버에 대기열 매칭 요청 (폴링 방식)
+    function requestMatchmaking(myPeerId) {
+        const serverUrl = `https://cosmageddon-server.onrender.com/match?id=${myPeerId}`;
+
+        fetch(serverUrl)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "matched") {
+                    if (pollTimer) clearInterval(pollTimer);
+
+                    if (data.isHost) {
+                        isHost = true;
+                        statusText.innerHTML = "⌛ Opponent found! Waiting for connection...";
+                        peer.on('connection', (c) => {
+                            conn = c;
+                            setupConnection();
+                        });
+                    } else {
+                        isHost = false;
+                        statusText.innerHTML = "⚔️ Opponent found! Connecting...";
+                        conn = peer.connect(data.opponentId);
+                        conn.on('open', () => {
+                            setupConnection();
+                        });
+                    }
+                } else {
+                    // 대기 중이면 1초마다 다시 체크
+                    if (!pollTimer) {
+                        pollTimer = setInterval(() => requestMatchmaking(myPeerId), 1000);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error("Matchmaking error:", err);
+            });
+    }
+
     function handleOpponentDisconnect() {
+        if (pollTimer) clearInterval(pollTimer);
         if (!isConnected || isDisconnectedHandled) return;
         isDisconnectedHandled = true;
         
@@ -326,6 +347,7 @@
     }
 
     function setupConnection() {
+        if (pollTimer) clearInterval(pollTimer);
         isConnected = true;
         statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
         buttonZone.innerHTML = `
