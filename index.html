@@ -258,37 +258,70 @@
             statusText.innerHTML = `⏳ <b>Waiting for friend...</b> (Room: ${roomCode})`;
         });
 
+        // 방장 입장에서 누군가 들어왔을 때 처리 (2번째면 Guest, 3번째부터는 Spectator)
         peer.on('connection', (c) => {
             if (isHost) {
+                let assignedRole = '';
                 if (!guestConn) {
                     guestConn = c;
+                    assignedRole = 'guest';
                     setupHostConnection(guestConn, 'guest');
                 } else {
                     spectatorConns.push(c);
+                    assignedRole = 'spectator';
                     setupHostConnection(c, 'spectator');
                 }
+
+                // 접속한 사람에게 역할(Guest 또는 Spectator) 부여 메시지 전송
+                setTimeout(() => {
+                    if (c && c.open) {
+                        c.send({
+                            type: 'ASSIGN_ROLE',
+                            role: assignedRole,
+                            boardState: boardState,
+                            gameState: gameState,
+                            playerRace: playerRace,
+                            enemyRace: enemyRace,
+                            turn: turn
+                        });
+                    }
+                }, 200);
             }
         });
 
         peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
+                // 이미 방이 있다면 게스트 또는 관전자로 접속 시도
                 peer.destroy();
-                statusText.innerHTML = `👀 Room is active. Connecting as Spectator...`;
+                statusText.innerHTML = `⚔️ Room found! Connecting...`;
 
                 peer = new Peer({ host: 'cosmageddon-server.onrender.com', port: 443, path: '/peerjs', secure: true });
                 peer.on('open', () => {
                     isHost = false;
-                    myRole = 'spectator';
                     conn = peer.connect(targetPeerId);
                     
                     conn.on('open', () => {
                         isConnected = true;
-                        statusText.innerHTML = `👀 <b>Spectating Match</b> (Read-only)`;
-                        buttonZone.innerHTML = "";
+                        statusText.innerHTML = `🔗 Connected to room. Verifying role...`;
                     });
 
                     conn.on('data', (data) => {
-                        if (data.type === 'SYNC_STATE') {
+                        if (data.type === 'ASSIGN_ROLE') {
+                            myRole = data.role;
+                            if (myRole === 'guest') {
+                                statusText.innerHTML = `🎮 Connected as Guest! Choose your faction within 5s:`;
+                                showFactionButtons();
+                                startTurnTimer(5, handleRaceSelectionTimeout);
+                            } else if (myRole === 'spectator') {
+                                statusText.innerHTML = `👀 <b>Spectating Match</b> (Read-only)`;
+                                buttonZone.innerHTML = "";
+                                boardState = data.boardState;
+                                playerRace = data.playerRace;
+                                enemyRace = data.enemyRace;
+                                gameState = data.gameState;
+                                renderPieces();
+                            }
+                        } else if (data.type === 'SYNC_STATE') {
                             boardState = data.boardState;
                             playerRace = data.playerRace;
                             enemyRace = data.enemyRace;
@@ -299,17 +332,10 @@
                         }
                     });
 
-                    conn.on('close', () => {
-                        alert("The match has ended or host disconnected.");
-                        location.reload();
-                    });
-                    conn.on('error', () => {
-                        handleOpponentDisconnect();
-                    });
+                    conn.on('close', handleOpponentDisconnect);
+                    conn.on('error', handleOpponentDisconnect);
                 });
-                peer.on('error', () => {
-                    handleOpponentDisconnect();
-                });
+                peer.on('error', handleOpponentDisconnect);
             } else {
                 handleOpponentDisconnect();
             }
@@ -399,15 +425,6 @@
                 statusText.innerHTML = "🎮 Friend Joined! Choose your faction within 5s:";
                 showFactionButtons();
                 startTurnTimer(5, handleRaceSelectionTimeout);
-            } else if (role === 'spectator') {
-                connection.send({
-                    type: 'SYNC_STATE',
-                    boardState: boardState,
-                    gameState: gameState,
-                    playerRace: playerRace,
-                    enemyRace: enemyRace,
-                    turn: turn
-                });
             }
         });
 
