@@ -292,6 +292,7 @@
         } else if (data.type === 'BOTH_TIMEOUT') {
             clearTurnTimer(); endGame("Both players failed to choose. Defeat!");
         } else if (data.type === 'PLACE_DRAFT_TURN') {
+            clearTurnTimer();
             const mirrorR = 7 - data.r;
             const mirrorC = 7 - data.c;
             boardState[mirrorR][mirrorC] = { ...data.piece, tier: currentDraftTier, side: 'enemy' };
@@ -469,6 +470,9 @@
             } else {
                 statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Placement</b><br>Waiting for opponent to place...`;
                 highlightDraftZone(false);
+                if (gameMode === "PVP") {
+                    startTurnTimer(10, () => {}); // Display countdown for opponent placement
+                }
             }
         }
     }
@@ -579,6 +583,7 @@
                     setTimeout(enemyTurn, 800);
                 } else {
                     statusText.innerHTML = "⏳ Waiting for opponent's turn...";
+                    startTurnTimer(30, () => {}); // Display countdown for opponent's turn
                 }
                 return; 
             } 
@@ -631,6 +636,7 @@
             startTurnTimer(30, handleTimeOut);
         } else {
             statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
+            if (gameMode === "PVP") startTurnTimer(30, () => {});
         }
         buttonZone.innerHTML = "";
         highlightDraftZone(false);
