@@ -165,6 +165,14 @@
     let playerTierPlacedCount = 0;
     let enemyTierPlacedCount = 0;  
 
+    // Tier 6 Simultaneous Draft variables (PVP only)
+    let tier6Phase = "CHOOSING"; // "CHOOSING" or "PLACING"
+    let tier6ChoiceMade = false;
+    let myTier6Choice = null;
+    let myTier6Time = 0;
+    let enemyTier6Choice = null;
+    let enemyTier6Time = 0;
+
     let turn = "player"; 
     let draftTurn = "player"; 
 
@@ -173,7 +181,8 @@
 
     function clearTurnTimer() { if (turnTimer) { clearInterval(turnTimer); turnTimer = null; } }
     function startTurnTimer(seconds, onTimeout) {
-        clearTurnTimer(); if (gameMode !== "PVP") return;
+        clearTurnTimer(); 
+        if (gameMode !== "PVP") return; // PVC에서는 타이머 작동 안 함
         timeLeft = seconds; updateTimerDisplay();
         turnTimer = setInterval(() => {
             timeLeft--; updateTimerDisplay();
@@ -181,7 +190,7 @@
         }, 1000);
     }
     function updateTimerDisplay() {
-        if (gameState === "GAMEOVER") return;
+        if (gameMode !== "PVP" || gameState === "GAMEOVER") return;
         statusText.innerHTML = statusText.innerHTML.replace(/ ⏱️ \d+s$/, '') + ` ⏱️ ${timeLeft}s`;
     }
 
@@ -202,6 +211,8 @@
         tierIndex = 0; currentDraftTier = TIER_ORDER[tierIndex];
         playerChosenPiece = null; aiChosenPiece = null;
         playerTierPlacedCount = 0; enemyTierPlacedCount = 0;
+        tier6Phase = "CHOOSING"; tier6ChoiceMade = false;
+        myTier6Choice = null; myTier6Time = 0; enemyTier6Choice = null; enemyTier6Time = 0;
         clearTurnTimer(); if (pollTimer) clearInterval(pollTimer);
 
         document.getElementById('main-menu').style.display = 'none';
@@ -271,6 +282,10 @@
             enemyRace = data.race; enemyRaceSelected = true;
             if (!myRaceSelected) statusText.innerHTML = `Opponent selected <b>${data.race}</b>. Please choose your faction!`;
             checkBothRacesSelected();
+        } else if (data.type === 'TIER6_CHOICE') {
+            enemyTier6Choice = data.piece;
+            enemyTier6Time = data.time;
+            checkBothTier6Chosen();
         } else if (data.type === 'TIMEOUT_LOSE') {
             clearTurnTimer(); endGame("Victory is yours! (Opponent ran out of time)");
         } else if (data.type === 'BOTH_TIMEOUT') {
@@ -304,10 +319,16 @@
 
     function handleRaceSelectionTimeout() {
         clearTurnTimer();
+        if (gameMode !== "PVP") return;
         if (!myRaceSelected && !enemyRaceSelected) { sendNetworkData({ type: 'BOTH_TIMEOUT' }); endGame("Defeat!"); }
         else if (!myRaceSelected) { sendNetworkData({ type: 'TIMEOUT_LOSE' }); endGame("Defeat! (Time out)"); }
     }
-    function handleTimeOut() { clearTurnTimer(); sendNetworkData({ type: 'TIMEOUT_LOSE' }); endGame("Defeat! (Time out)"); }
+    function handleTimeOut() { 
+        clearTurnTimer(); 
+        if (gameMode !== "PVP") return;
+        sendNetworkData({ type: 'TIMEOUT_LOSE' }); 
+        endGame("Defeat! (Time out)"); 
+    }
 
     function checkBothRacesSelected() {
         if (myRaceSelected && enemyRaceSelected) {
@@ -316,7 +337,8 @@
             tierIndex = 0; currentDraftTier = TIER_ORDER[tierIndex];
             playerChosenPiece = null; aiChosenPiece = null;
             playerTierPlacedCount = 0; enemyTierPlacedCount = 0;
-            draftTurn = (gameMode === "PVC" || isHost) ? "player" : "enemy";
+            tier6Phase = "CHOOSING"; tier6ChoiceMade = false;
+            myTier6Choice = null; myTier6Time = 0; enemyTier6Choice = null; enemyTier6Time = 0;
             startDraftTurn();
         }
     }
@@ -375,36 +397,130 @@
     function startDraftTurn() {
         buttonZone.innerHTML = "";
         
-        if (draftTurn === "player") {
-            let required = TIER_PER_PLAYER_COUNTS[currentDraftTier];
-            let remaining = required - playerTierPlacedCount;
-            
-            if (!playerChosenPiece) {
-                statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Choose a unit (You need to place ${required})`;
-                
-                PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
-                    const btn = document.createElement('button');
-                    btn.className = "choice-btn";
-                    btn.innerHTML = `${piece.emoji} ${piece.name}`;
-                    // 기물을 선택하는 순간 playerChosenPiece에 고정되며, 변경할 수 있는 취소 버튼은 아예 만들지 않습니다!
-                    btn.onclick = () => { 
-                        playerChosenPiece = piece; 
-                        startDraftTurn(); 
-                    };
-                    buttonZone.appendChild(btn);
-                });
+        if (currentDraftTier === 6) {
+            if (tier6Phase === "CHOOSING") {
+                if (!tier6ChoiceMade) {
+                    if (gameMode === "PVP") {
+                        statusText.innerHTML = `🛡️ <b>Tier 6 Simultaneous Draft</b><br>Choose your unit within 5s!`;
+                        startTurnTimer(5, handleTier6Timeout);
+                    } else {
+                        statusText.innerHTML = `🛡️ <b>Tier 6 Draft</b><br>Choose your unit! (No time limit)`;
+                    }
+
+                    if (gameMode === "PVC") {
+                        // PVC에서는 컴퓨터가 고민 없이 선택
+                        enemyTier6Choice = PIECE_DATABASE[enemyRace][6][Math.floor(Math.random() * 3)];
+                        enemyTier6Time = 0;
+                    }
+
+                    PIECE_DATABASE[playerRace][6].forEach(piece => {
+                        const btn = document.createElement('button');
+                        btn.className = "choice-btn";
+                        btn.innerHTML = `${piece.emoji} ${piece.name}`;
+                        btn.onclick = () => {
+                            if (tier6ChoiceMade) return;
+                            tier6ChoiceMade = true;
+                            myTier6Choice = piece;
+                            myTier6Time = (gameMode === "PVP") ? (5 - timeLeft) : 0;
+                            clearTurnTimer();
+                            
+                            buttonZone.innerHTML = `<div>Selected ${piece.emoji} ${piece.name}. Waiting...</div>`;
+                            statusText.innerHTML = `🛡️ <b>Tier 6 Draft</b><br>Choice locked! Waiting...`;
+
+                            if (gameMode === "PVC") {
+                                resolveTier6DraftOrder();
+                            } else {
+                                sendNetworkData({ type: 'TIER6_CHOICE', piece: piece, time: myTier6Time });
+                                checkBothTier6Chosen();
+                            }
+                        };
+                        buttonZone.appendChild(btn);
+                    });
+                }
             } else {
-                statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Place ${playerChosenPiece.emoji} (Need ${remaining} more) on Rows 6-7.`;
-                highlightDraftZone(true);
+                // Tier 6 Placing Phase
+                let required = 8;
+                let remaining = required - playerTierPlacedCount;
+                if (draftTurn === "player") {
+                    statusText.innerHTML = `🛡️ <b>Tier 6 Placement</b><br>Place ${myTier6Choice.emoji} (Need ${remaining} more) on Rows 6-7.`;
+                    highlightDraftZone(true);
+                } else {
+                    statusText.innerHTML = `🛡️ <b>Tier 6 Placement</b><br>Waiting for opponent to place...`;
+                    highlightDraftZone(false);
+                }
             }
         } else {
-            if (gameMode === "PVC") {
-                statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Computer is placing its unit...`;
-                setTimeout(aiPerformDraftTurn, 400); 
+            // Tiers 5 to 1 (Standard turn-based draft)
+            if (draftTurn === "player") {
+                let required = TIER_PER_PLAYER_COUNTS[currentDraftTier];
+                let remaining = required - playerTierPlacedCount;
+                
+                if (!playerChosenPiece) {
+                    statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Choose a unit (You need to place ${required})`;
+                    
+                    PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
+                        const btn = document.createElement('button');
+                        btn.className = "choice-btn";
+                        btn.innerHTML = `${piece.emoji} ${piece.name}`;
+                        btn.onclick = () => { 
+                            playerChosenPiece = piece; 
+                            startDraftTurn(); 
+                        };
+                        buttonZone.appendChild(btn);
+                    });
+                } else {
+                    statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Place ${playerChosenPiece.emoji} (Need ${remaining} more) on Rows 6-7.`;
+                    highlightDraftZone(true);
+                }
             } else {
-                statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Waiting for opponent to place...`;
+                if (gameMode === "PVC") {
+                    statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Computer is placing its unit...`;
+                    setTimeout(aiPerformDraftTurn, 400); 
+                } else {
+                    statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Waiting for opponent to place...`;
+                }
+                highlightDraftZone(false);
             }
-            highlightDraftZone(false);
+        }
+    }
+
+    function checkBothTier6Chosen() {
+        if (tier6ChoiceMade && enemyTier6Choice) {
+            clearTurnTimer();
+            resolveTier6DraftOrder();
+        }
+    }
+
+    function resolveTier6DraftOrder() {
+        tier6Phase = "PLACING";
+        playerChosenPiece = myTier6Choice;
+        
+        if (gameMode === "PVC") {
+            // PVC에서는 플레이어가 먼저 놓게 하거나 무작위 배정
+            draftTurn = "player";
+        } else {
+            // PVP: Slower picker places FIRST, faster picker places SECOND.
+            if (myTier6Time > enemyTier6Time) {
+                draftTurn = "player";
+            } else if (myTier6Time < enemyTier6Time) {
+                draftTurn = "enemy";
+            } else {
+                draftTurn = isHost ? "player" : "enemy";
+            }
+        }
+
+        startDraftTurn();
+    }
+
+    function handleTier6Timeout() {
+        clearTurnTimer();
+        if (gameMode !== "PVP") return;
+        if (!tier6ChoiceMade && !enemyTier6Choice) {
+            sendNetworkData({ type: 'BOTH_TIMEOUT' });
+            endGame("Both failed to choose Tier 6 in time. Defeat!");
+        } else if (!tier6ChoiceMade) {
+            sendNetworkData({ type: 'TIMEOUT_LOSE' });
+            endGame("Defeat! (Tier 6 time out)");
         }
     }
 
@@ -418,29 +534,64 @@
 
     function handleCellClick(row, col) {
         if (gameState === "DRAFT_LOOP") {
-            if (draftTurn !== "player" || !playerChosenPiece) return;
+            if (currentDraftTier === 6 && tier6Phase === "PLACING") {
+                if (draftTurn !== "player" || !myTier6Choice) return;
 
-            if (row === 6 || row === 7) {
-                if (boardState[row][col]) return; 
+                if (row === 6 || row === 7) {
+                    if (boardState[row][col]) return; 
 
-                const placedPiece = playerChosenPiece;
-                boardState[row][col] = { ...placedPiece, tier: currentDraftTier, side: 'player' };
-                renderPieces();
-                highlightDraftZone(false);
-                
-                playerTierPlacedCount++; 
+                    const placedPiece = myTier6Choice;
+                    boardState[row][col] = { ...placedPiece, tier: currentDraftTier, side: 'player' };
+                    renderPieces();
+                    highlightDraftZone(false);
+                    
+                    playerTierPlacedCount++; 
 
-                if (gameMode === "PVP") {
-                    sendNetworkData({
-                        type: 'PLACE_DRAFT_TURN',
-                        r: row,
-                        c: col,
-                        piece: placedPiece
-                    });
+                    if (gameMode === "PVP") {
+                        sendNetworkData({
+                            type: 'PLACE_DRAFT_TURN',
+                            r: row,
+                            c: col,
+                            piece: placedPiece
+                        });
+                    }
+
+                    draftTurn = "enemy"; 
+                    if (gameMode === "PVC") {
+                        setTimeout(aiPerformDraftTurn, 400);
+                    } else {
+                        advanceDraftState(); 
+                    }
                 }
+            } else if (currentDraftTier !== 6) {
+                if (draftTurn !== "player" || !playerChosenPiece) return;
 
-                draftTurn = "enemy"; 
-                advanceDraftState(); 
+                if (row === 6 || row === 7) {
+                    if (boardState[row][col]) return; 
+
+                    const placedPiece = playerChosenPiece;
+                    boardState[row][col] = { ...placedPiece, tier: currentDraftTier, side: 'player' };
+                    renderPieces();
+                    highlightDraftZone(false);
+                    
+                    playerTierPlacedCount++; 
+
+                    if (gameMode === "PVP") {
+                        sendNetworkData({
+                            type: 'PLACE_DRAFT_TURN',
+                            r: row,
+                            c: col,
+                            piece: placedPiece
+                        });
+                    }
+
+                    draftTurn = "enemy"; 
+                    if (gameMode === "PVC") {
+                        setTimeout(aiPerformDraftTurn, 400);
+                    } else {
+                        advanceDraftState(); 
+                    }
+                }
             }
         } 
         else if (gameState === "GAMEPLAY") {
@@ -490,9 +641,15 @@
     }
 
     function aiPerformDraftTurn() {
-        if (!aiChosenPiece) {
-            const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
-            aiChosenPiece = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
+        let pieceToPlace;
+        if (currentDraftTier === 6) {
+            pieceToPlace = enemyTier6Choice;
+        } else {
+            if (!aiChosenPiece) {
+                const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
+                aiChosenPiece = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
+            }
+            pieceToPlace = aiChosenPiece;
         }
 
         let emptySpots = [];
@@ -504,7 +661,7 @@
 
         if (emptySpots.length > 0) {
             const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-            boardState[spot.r][spot.c] = { ...aiChosenPiece, tier: currentDraftTier, side: 'enemy' };
+            boardState[spot.r][spot.c] = { ...pieceToPlace, tier: currentDraftTier, side: 'enemy' };
             renderPieces();
             enemyTierPlacedCount++;
         }
