@@ -268,9 +268,10 @@
 
     function startTurnTimer(seconds, onTimeout) {
         clearTurnTimer();
-        if (gameMode !== "PVP") return; // PVC는 타이머 제외 (원하시면 추가 가능)
+        if (gameMode !== "PVP") return; // PVC는 타이머 제외
         
         timeLeft = seconds;
+        updateTimerDisplay();
         turnTimer = setInterval(() => {
             timeLeft--;
             updateTimerDisplay();
@@ -303,6 +304,7 @@
         enemyRaceSelected = false;
         playerRace = "";
         enemyRace = "";
+        gameState = "CHOOSE_RACE";
         clearTurnTimer();
 
         if (pollTimer) clearInterval(pollTimer);
@@ -395,6 +397,7 @@
 
         statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
         showFactionButtons();
+        startTurnTimer(10, handleTimeOut); // 팩션 선택 10초 타이머 시작
     }
 
     function showFactionButtons() {
@@ -473,6 +476,7 @@
 
     function checkBothRacesSelected() {
         if (myRaceSelected && enemyRaceSelected) {
+            clearTurnTimer();
             gameState = "DRAFT_LOOP";
             draftTurn = "host";
             startTierDraft();
@@ -493,8 +497,10 @@
     }
 
     function selectRace(race) {
-        playerRace = race;
+        if (myRaceSelected) return;
         myRaceSelected = true;
+        playerRace = race;
+        clearTurnTimer();
 
         if (gameMode === "PVC") {
             const races = ['Dragon', 'Elf', 'Human'];
