@@ -249,11 +249,11 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     
-    // 엄격한 티어 진행 순서 및 각 티어별 양쪽 합산 총 배치 필요 수량 (티어 6:16개, 티어 5:4개, 티어 4:4개, 티어 3:4개, 티어 2:2개, 티어 1:2개)
+    // 정확한 티어 진행 순서 및 각 티어별 양쪽 합산 총 배치 필요 수량 (티어 6: 8개, 티어 5: 2개, 티어 4: 2개, 티어 3: 2개, 티어 2: 1개, 티어 1: 1개)
     const TIER_ORDER = [6, 5, 4, 3, 2, 1];
     let tierIndex = 0; 
     let currentDraftTier = 6;
-    const TIER_TOTAL_COUNTS = { 6: 16, 5: 4, 4: 4, 3: 4, 2: 2, 1: 2 };
+    const TIER_TOTAL_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
     
     let playerChosenPiece = null;      
     let enemyChosenPiece = null; 
@@ -637,7 +637,7 @@
                     }
                 }
 
-                let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && tierFinished && countPlayerPieces() >= 16);
+                let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && tierFinished);
 
                 if (gameMode === "PVC") {
                     if (finishedAll) {
@@ -745,16 +745,6 @@
         }
     }
 
-    function countPlayerPieces() {
-        let count = 0;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (boardState[r][c] && boardState[r][c].side === 'player') count++;
-            }
-        }
-        return count;
-    }
-
     let aiChosenPiece = null;
 
     function aiChooseTierPiece() {
@@ -793,7 +783,7 @@
             }
         }
 
-        let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && aiTierFinished && countEnemyPieces() >= 16);
+        let finishedAll = (tierIndex >= TIER_ORDER.length - 1 && aiTierFinished);
 
         if (finishedAll) {
             gameState = "GAMEPLAY";
@@ -804,16 +794,6 @@
             draftTurn = "player";
             startDraftTurn();
         }
-    }
-
-    function countEnemyPieces() {
-        let count = 0;
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (boardState[r][c] && boardState[r][c].side === 'enemy') count++;
-            }
-        }
-        return count;
     }
 
     function clearHighlights() {
