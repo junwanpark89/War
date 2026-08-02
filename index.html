@@ -130,30 +130,31 @@
     let myRaceSelected = false, enemyRaceSelected = false;
     let turnTimer = null, timeLeft = 0;
 
+    // 54개의 모든 기물에 고유한 move pattern (1 ~ 54) 부여
     const PIECE_DATABASE = {
         Dragon: {
-            6: [{name:"Fire Spirit", emoji:"🌟"}, {name:"Magma Slime", emoji:"🍮"}, {name:"Baby Wyvern", emoji:"🐲"}],
-            5: [{name:"Whelp", emoji:"🦖"}, {name:"Imp Fighter", emoji:"😈"}, {name:"Gargoyle Scout", emoji:"🦇"}],
-            4: [{name:"Lava Chariot", emoji:"🚗"}, {name:"Venom Scorpion", emoji:"🦂"}, {name:"Flame Viper", emoji:"🌶️"}],
-            3: [{name:"Magma Giant", emoji:"☄️"}, {name:"Mecha Dragon", emoji:"🤖"}, {name:"Acid Wyvern", emoji:"🧪"}],
-            2: [{name:"Flame Lord", emoji:"👹"}, {name:"Storm Drake", emoji:"🌩️"}, {name:"Gargoyle Elder", emoji:"🌪️"}],
-            1: [{name:"Ruination Dragon", emoji:"🌋"}, {name:"Ancient Drake", emoji:"🦕"}, {name:"Abyss Dragon", emoji:"🌌"}]
+            6: [{name:"Fire Spirit", emoji:"🌟", pattern:1}, {name:"Magma Slime", emoji:"🍮", pattern:2}, {name:"Baby Wyvern", emoji:"🐲", pattern:3}],
+            5: [{name:"Whelp", emoji:"🦖", pattern:4}, {name:"Imp Fighter", emoji:"😈", pattern:5}, {name:"Gargoyle Scout", emoji:"🦇", pattern:6}],
+            4: [{name:"Lava Chariot", emoji:"🚗", pattern:7}, {name:"Venom Scorpion", emoji:"🦂", pattern:8}, {name:"Flame Viper", emoji:"🌶️", pattern:9}],
+            3: [{name:"Magma Giant", emoji:"☄️", pattern:10}, {name:"Mecha Dragon", emoji:"🤖", pattern:11}, {name:"Acid Wyvern", emoji:"🧪", pattern:12}],
+            2: [{name:"Flame Lord", emoji:"👹", pattern:13}, {name:"Storm Drake", emoji:"🌩️", pattern:14}, {name:"Gargoyle Elder", emoji:"🌪️", pattern:15}],
+            1: [{name:"Ruination Dragon", emoji:"🌋", pattern:16}, {name:"Ancient Drake", emoji:"🦕", pattern:17}, {name:"Abyss Dragon", emoji:"🌌", pattern:18}]
         },
         Elf: {
-            6: [{name:"Spirit Butterfly", emoji:"🦋"}, {name:"Elf Militia", emoji:"🤺"}, {name:"Pixie", emoji:"🧚"}],
-            5: [{name:"Druid", emoji:"🌿"}, {name:"Elf Swordsman", emoji:"⚔️"}, {name:"Treant", emoji:"🪵"}],
-            4: [{name:"Leopard Tamer", emoji:"🐆"}, {name:"Owl Scout", emoji:"🦉"}, {name:"Fairy Rogue", emoji:"🥷"}],
-            3: [{name:"Wind Dancer", emoji:"🍃"}, {name:"Illusionist", emoji:"🔮"}, {name:"Centaur Archer", emoji:"🏇"}],
-            2: [{name:"Moonbow Archer", emoji:"🌙"}, {name:"Gryphon Knight", emoji:"🦁"}, {name:"Unicorn Guardian", emoji:"🦄"}],
-            1: [{name:"Elf Queen", emoji:"🧝‍♀️"}, {name:"Worldtree Keeper", emoji:"🌳"}, {name:"Elemental King", emoji:"🌊"}]
+            6: [{name:"Spirit Butterfly", emoji:"🦋", pattern:19}, {name:"Elf Militia", emoji:"🤺", pattern:20}, {name:"Pixie", emoji:"🧚", pattern:21}],
+            5: [{name:"Druid", emoji:"🌿", pattern:22}, {name:"Elf Swordsman", emoji:"⚔️", pattern:23}, {name:"Treant", emoji:"🪵", pattern:24}],
+            4: [{name:"Leopard Tamer", emoji:"🐆", pattern:25}, {name:"Owl Scout", emoji:"🦉", pattern:26}, {name:"Fairy Rogue", emoji:"🥷", pattern:27}],
+            3: [{name:"Wind Dancer", emoji:"🍃", pattern:28}, {name:"Illusionist", emoji:"🔮", pattern:29}, {name:"Centaur Archer", emoji:"🏇", pattern:30}],
+            2: [{name:"Moonbow Archer", emoji:"🌙", pattern:31}, {name:"Gryphon Knight", emoji:"🦁", pattern:32}, {name:"Unicorn Guardian", emoji:"🦄", pattern:33}],
+            1: [{name:"Elf Queen", emoji:"🧝‍♀️", pattern:34}, {name:"Worldtree Keeper", emoji:"🌳", pattern:35}, {name:"Elemental King", emoji:"🌊", pattern:36}]
         },
         Human: {
-            6: [{name:"Footman", emoji:"💂"}, {name:"Peasant", emoji:"🧑‍🌾"}, {name:"Recruit", emoji:"🎖️"}],
-            5: [{name:"Apprentice Mage", emoji:"📜"}, {name:"Spearman", emoji:"🔱"}, {name:"Spy", emoji:"🕵️‍♂️"}],
-            4: [{name:"Gryphon Rider", emoji:"🦅"}, {name:"Royal Archer", emoji:"🏹"}, {name:"Crossbowman", emoji:"🎯"}],
-            3: [{name:"Priest", emoji:"⛪"}, {name:"Shield Bearer", emoji:"🧱"}, {name:"Crusader", emoji:"✝️"}],
-            2: [{name:"Heavy Knight", emoji:"🐴"}, {name:"Royal Assassin", emoji:"🗡️"}, {name:"Siege Cannon", emoji:"💣"}],
-            1: [{name:"Grand Emperor", emoji:"👑"}, {name:"Archmage", emoji:"🧙‍♂️"}, {name:"Paladin Commander", emoji:"🛡️"}]
+            6: [{name:"Footman", emoji:"💂", pattern:37}, {name:"Peasant", emoji:"🧑‍🌾", pattern:38}, {name:"Recruit", emoji:"🎖️", pattern:39}],
+            5: [{name:"Apprentice Mage", emoji:"📜", pattern:40}, {name:"Spearman", emoji:"🔱", pattern:41}, {name:"Spy", emoji:"🕵️‍♂️", pattern:42}],
+            4: [{name:"Gryphon Rider", emoji:"🦅", pattern:43}, {name:"Royal Archer", emoji:"🏹", pattern:44}, {name:"Crossbowman", emoji:"🎯", pattern:45}],
+            3: [{name:"Priest", emoji:"⛪", pattern:46}, {name:"Shield Bearer", emoji:"🧱", pattern:47}, {name:"Crusader", emoji:"✝️", pattern:48}],
+            2: [{name:"Heavy Knight", emoji:"🐴", pattern:49}, {name:"Royal Assassin", emoji:"🗡️", pattern:50}, {name:"Siege Cannon", emoji:"💣", pattern:51}],
+            1: [{name:"Grand Emperor", emoji:"👑", pattern:52}, {name:"Archmage", emoji:"🧙‍♂️", pattern:53}, {name:"Paladin Commander", emoji:"🛡️", pattern:54}]
         }
     };
 
@@ -853,44 +854,115 @@
         document.querySelectorAll('.cell').forEach(c => c.classList.remove('selected', 'enemy-selected', 'move-valid', 'enemy-move-valid'));
     }
 
+    // 54개의 기물마다 고유한 패턴(1~54)을 바탕으로 서로 다른 이동 규칙을 계산하는 함수
     function calculateMoves(row, col, piece) {
-        const moves = []; const side = piece.side; const tier = piece.tier;
-        const directions = [
-            {r: -1, c: 0}, {r: 1, c: 0}, {r: 0, c: -1}, {r: 0, c: 1}, 
-            {r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1} 
+        const moves = [];
+        const side = piece.side;
+        const pattern = piece.pattern || 1;
+
+        const addSlidingMoves = (directions, maxRange) => {
+            directions.forEach(dir => {
+                for (let i = 1; i <= maxRange; i++) {
+                    const nr = row + dir.r * i;
+                    const nc = col + dir.c * i;
+                    if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break;
+                    const target = boardState[nr][nc];
+                    if (!target) {
+                        moves.push({ r: nr, c: nc });
+                    } else {
+                        if (target.side !== side) moves.push({ r: nr, c: nc });
+                        break;
+                    }
+                }
+            });
+        };
+
+        const addStepMoves = (offsets) => {
+            offsets.forEach(off => {
+                const nr = row + off.r;
+                const nc = col + off.c;
+                if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                    const target = boardState[nr][nc];
+                    if (!target || target.side !== side) {
+                        moves.push({ r: nr, c: nc });
+                    }
+                }
+            });
+        };
+
+        const orthoDirs = [{r:-1,c:0}, {r:1,c:0}, {r:0,c:-1}, {r:0,c:1}];
+        const diagDirs = [{r:-1,c:-1}, {r:-1,c:1}, {r:1,c:-1}, {r:1,c:1}];
+        const allDirs = [...orthoDirs, ...diagDirs];
+        const knightOffsets = [
+            {r:-2, c:-1}, {r:-2, c:1}, {r:-1, c:-2}, {r:-1, c:2},
+            {r:1, c:-2}, {r:1, c:2}, {r:2, c:-1}, {r:2, c:1}
         ];
 
-        let maxRange = 1;
-        if (tier === 5) maxRange = 2;
-        if (tier === 4) maxRange = 3;
-        if (tier === 3) maxRange = 4;
-        if (tier === 2) maxRange = 5;
-        if (tier === 1) maxRange = 8; 
+        let range = 1;
+        let useOrtho = false;
+        let useDiag = false;
+        let useAll = false;
+        let useKnight = false;
+        let extraOffsets = [];
 
-        directions.forEach(dir => {
-            for (let i = 1; i <= maxRange; i++) {
-                const nr = row + dir.r * i; const nc = col + dir.c * i;
-                if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break; 
-                const target = boardState[nr][nc];
-                if (!target) moves.push({ r: nr, c: nc });
-                else { if (target.side !== side) moves.push({ r: nr, c: nc }); break; }
+        // 54개 고유 패턴별 규칙 설정 (티어 6이 가장 약하고 티어 1이 가장 강력하도록 스케일링)
+        if (pattern >= 1 && pattern <= 3) { // T6 Dragon (약함: 범위 1)
+            range = 1; if (pattern === 1) useOrtho = true; else if (pattern === 2) useDiag = true; else useAll = true;
+        } else if (pattern >= 4 && pattern <= 6) { // T5 Dragon (범위 2)
+            range = 2; if (pattern === 4) useOrtho = true; else if (pattern === 5) useDiag = true; else useAll = true;
+        } else if (pattern >= 7 && pattern <= 9) { // T4 Dragon (범위 3)
+            range = 3; if (pattern === 7) useOrtho = true; else if (pattern === 8) useDiag = true; else useAll = true;
+        } else if (pattern >= 10 && pattern <= 12) { // T3 Dragon (범위 4 + 나이트)
+            range = 4; useKnight = true; if (pattern === 10) useOrtho = true; else if (pattern === 11) useDiag = true; else useAll = true;
+        } else if (pattern >= 13 && pattern <= 15) { // T2 Dragon (범위 6 + 엘리트)
+            range = 6; useKnight = (pattern !== 15); if (pattern === 13) useOrtho = true; else if (pattern === 14) useDiag = true; else useAll = true;
+        } else if (pattern >= 16 && pattern <= 18) { // T1 Dragon (최강: 범위 8 + 궁극 능력)
+            range = 8; useAll = true; if (pattern === 17 || pattern === 18) useKnight = true; if (pattern === 18) extraOffsets = [{r:-2,c:-2},{r:2,c:2},{r:-2,c:2},{r:2,c:-2}];
+        } 
+        else if (pattern >= 19 && pattern <= 21) { // T6 Elf
+            range = 1; if (pattern === 19) useDiag = true; else if (pattern === 20) useOrtho = true; else useAll = true;
+        } else if (pattern >= 22 && pattern <= 24) { // T5 Elf
+            range = 2; if (pattern === 22) { useOrtho = true; extraOffsets = [{r:-1,c:-1},{r:1,c:1}]; } else if (pattern === 23) { useDiag = true; extraOffsets = [{r:-1,c:0},{r:1,c:0}]; } else { useOrtho = true; range = 2; }
+        } else if (pattern >= 25 && pattern <= 27) { // T4 Elf
+            range = 3; if (pattern === 25) useDiag = true; else if (pattern === 26) { useDiag = true; range = 3; } else { useAll = true; useKnight = true; range = 2; }
+        } else if (pattern >= 28 && pattern <= 30) { // T3 Elf
+            range = 4; if (pattern === 28) useDiag = true; else if (pattern === 29) useOrtho = true; else { useAll = true; useKnight = true; }
+        } else if (pattern >= 31 && pattern <= 33) { // T2 Elf
+            range = 6; if (pattern === 31) useDiag = true; else if (pattern === 32) useOrtho = true; else { useAll = true; useKnight = true; range = 5; }
+        } else if (pattern >= 34 && pattern <= 36) { // T1 Elf
+            range = 8; useAll = true; if (pattern === 35 || pattern === 36) useKnight = true;
+        }
+        else if (pattern >= 37 && pattern <= 39) { // T6 Human
+            range = 1; if (pattern === 37) useOrtho = true; else if (pattern === 38) useDiag = true; else useAll = true;
+        } else if (pattern >= 40 && pattern <= 42) { // T5 Human
+            range = 2; if (pattern === 40) useDiag = true; else if (pattern === 41) useOrtho = true; else useAll = true;
+        } else if (pattern >= 43 && pattern <= 45) { // T4 Human
+            range = 3; if (pattern === 43) useDiag = true; else if (pattern === 44) useOrtho = true; else { useOrtho = true; range = 3; }
+        } else if (pattern >= 46 && pattern <= 48) { // T3 Human
+            range = 4; if (pattern === 46) useDiag = true; else if (pattern === 47) useOrtho = true; else { useAll = true; useKnight = true; range = 3; }
+        } else if (pattern >= 49 && pattern <= 51) { // T2 Human
+            range = 6; if (pattern === 49) { useOrtho = true; useKnight = true; range = 4; } else if (pattern === 50) { useDiag = true; useKnight = true; } else { useOrtho = true; range = 6; }
+        } else if (pattern >= 52 && pattern <= 54) { // T1 Human
+            range = 8; useAll = true; useKnight = true;
+        }
+
+        if (useOrtho) addSlidingMoves(orthoDirs, range);
+        if (useDiag) addSlidingMoves(diagDirs, range);
+        if (useAll) addSlidingMoves(allDirs, range);
+        if (useKnight) addStepMoves(knightOffsets);
+        if (extraOffsets.length > 0) addStepMoves(extraOffsets);
+
+        const uniqueMoves = [];
+        const seen = new Set();
+        moves.forEach(m => {
+            const key = `${m.r},${m.c}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueMoves.push(m);
             }
         });
 
-        if (tier <= 3) {
-            const knightOffsets = [
-                {r:-2, c:-1}, {r:-2, c:1}, {r:-1, c:-2}, {r:-1, c:2},
-                {r:1, c:-2}, {r:1, c:2}, {r:2, c:-1}, {r:2, c:1}
-            ];
-            knightOffsets.forEach(off => {
-                const nr = row + off.r; const nc = col + off.c;
-                if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                    const target = boardState[nr][nc];
-                    if (!target || target.side !== side) moves.push({r: nr, c: nc});
-                }
-            });
-        }
-        return moves;
+        return uniqueMoves;
     }
 
     function enemyTurn() {
