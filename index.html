@@ -419,9 +419,10 @@
         
         if (tierChoicePhase === "CHOOSING") {
             if (!tierChoiceMade) {
+                let draftTimeLimit = (currentDraftTier === 6) ? 5 : 10;
                 if (gameMode === "PVP") {
-                    statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Simultaneous Draft</b><br>Choose your unit within 5s!`;
-                    startTurnTimer(5, handleTierChoiceTimeout);
+                    statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Simultaneous Draft</b><br>Choose your unit within ${draftTimeLimit}s!`;
+                    startTurnTimer(draftTimeLimit, handleTierChoiceTimeout);
                 } else {
                     statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Choose your unit!`;
                 }
@@ -440,7 +441,7 @@
                         if (tierChoiceMade) return;
                         tierChoiceMade = true;
                         myTierChoice = piece;
-                        myTierTime = (gameMode === "PVP") ? (5 - timeLeft) : 1;
+                        myTierTime = (gameMode === "PVP") ? (draftTimeLimit - timeLeft) : 1;
                         clearTurnTimer();
                         
                         buttonZone.innerHTML = `<div>Selected ${piece.emoji} ${piece.name}. Waiting...</div>`;
