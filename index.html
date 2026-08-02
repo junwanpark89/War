@@ -253,6 +253,9 @@
     let remainingPlacements = 0;
     let turn = "player"; 
 
+    // 드래프트 단계에서 현재 누구의 배치 차례인지 구분 ('player' 또는 'enemy')
+    let draftTurn = "player";
+
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
     let selectedCell = null; 
     let validMoves = [];     
@@ -429,17 +432,15 @@
             clearTurnTimer();
             endGame("Both players failed to choose. Defeat!");
         } else if (data.type === 'SELECT_DRAFT_PIECE') {
-            // 상대방이 기물을 하나 골랐음
+            // 상대방이 기물을 골랐음
             enemyChosenTierPiece = { ...data.piece, tier: currentDraftTier };
-            statusText.innerHTML = `Opponent chose ${enemyChosenTierPiece.emoji} ${enemyChosenTierPiece.name}. Placing...`;
+            statusText.innerHTML = `Opponent chose ${enemyChosenTierPiece.emoji} ${enemyChosenTierPiece.name}. Waiting for opponent to place...`;
         } else if (data.type === 'PLACE_DRAFT_PIECE') {
             clearTurnTimer();
             const mirrorR = 7 - data.r;
             const mirrorC = 7 - data.c;
             boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
             renderPieces();
-
-            remainingPlacements--;
 
             if (data.finishedAll) {
                 gameState = "GAMEPLAY";
@@ -452,14 +453,9 @@
                 }
                 recordBoardState();
             } else {
-                if (remainingPlacements === 0) {
-                    if (currentDraftTier > 1) {
-                        currentDraftTier--;
-                        startSingleDraftTurn();
-                    }
-                } else {
-                    startSingleDraftTurn();
-                }
+                // 상대가 배치 끝났으므로 이제 내 차례로 변경하여 기물 고르게 함
+                draftTurn = "player";
+                startSingleDraftTurn();
             }
         } else if (data.type === 'MOVE') {
             clearTurnTimer();
@@ -503,7 +499,8 @@
             clearTurnTimer();
             gameState = "DRAFT_LOOP";
             currentDraftTier = 6;
-            remainingPlacements = 8;
+            remainingPlacements = 32; // 총 32개 기물 순차적 배치
+            draftTurn = "player";
             startSingleDraftTurn();
         }
     }
@@ -532,7 +529,8 @@
             enemyRace = races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
             gameState = "DRAFT_LOOP";
             currentDraftTier = 6;
-            remainingPlacements = 8;
+            remainingPlacements = 32;
+            draftTurn = "player";
             startSingleDraftTurn();
         } else {
             sendNetworkData({ type: 'SELECT_RACE', race: race });
@@ -542,32 +540,35 @@
         }
     }
 
-    // 매 드래프트 턴마다 기물 1개를 고르는 단계 시작
     function startSingleDraftTurn() {
         chosenTierPiece = null;
-        statusText.innerHTML = `[Tier ${currentDraftTier}] Choose 1 piece to deploy (${remainingPlacements} left).`;
-        buttonZone.innerHTML = "";
-        highlightDraftZone(false);
+        
+        // 내 차례일 때만 버튼을 띄워 기물을 고를 수 있게 함
+        if (draftTurn === "player") {
+            statusText.innerHTML = `[Tier ${currentDraftTier}] Choose 1 piece to deploy (${remainingPlacements} left).`;
+            buttonZone.innerHTML = "";
+            highlightDraftZone(false);
 
-        PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
-            const btn = document.createElement('button');
-            btn.className = "choice-btn";
-            btn.innerHTML = `${piece.emoji} ${piece.name}`;
-            btn.onclick = () => chooseSingleDraftPiece(piece);
-            buttonZone.appendChild(btn);
-        });
+            PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
+                const btn = document.createElement('button');
+                btn.className = "choice-btn";
+                btn.innerHTML = `${piece.emoji} ${piece.name}`;
+                btn.onclick = () => chooseSingleDraftPiece(piece);
+                buttonZone.appendChild(btn);
+            });
+        } else {
+            statusText.innerHTML = `[Tier ${currentDraftTier}] Waiting for opponent to choose & place...`;
+            buttonZone.innerHTML = "";
+            highlightDraftZone(false);
+        }
     }
 
     function chooseSingleDraftPiece(piece) {
-        if (chosenTierPiece) return;
+        if (draftTurn !== "player" || chosenTierPiece) return;
         chosenTierPiece = { ...piece, tier: currentDraftTier };
         buttonZone.innerHTML = "";
 
         if (gameMode === "PVC") {
-            const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
-            enemyChosenTierPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
-            
-            // 기물을 골랐으므로 곧바로 내 진영에 배치하도록 하이라이트 활성화
             statusText.innerHTML = `Place your ${chosenTierPiece.emoji} ${chosenTierPiece.name} on the board.`;
             highlightDraftZone(true);
         } else {
@@ -583,7 +584,8 @@
     function highlightDraftZone(on) {
         document.querySelectorAll('.cell').forEach(cell => {
             const r = parseInt(cell.dataset.row);
-            if (on && (r === 6 || r === 7)) {
+            // 내 차례이고 기물을 골랐을 때만 내 진영(6, 7행)에 하이라이트 표시
+            if (on && draftTurn === "player" && (r === 6 || r === 7)) {
                 cell.classList.add('highlight');
             } else {
                 cell.classList.remove('highlight');
@@ -592,7 +594,10 @@
     }
 
     function handleCellClick(row, col) {
-        if (gameState === "DRAFT_LOOP" && chosenTierPiece) {
+        if (gameState === "DRAFT_LOOP") {
+            // 상대방 차례이거나 아직 내 기물을 안 골랐으면 판을 클릭해도 아무 일도 안 일어남
+            if (draftTurn !== "player" || !chosenTierPiece) return;
+
             if (row === 6 || row === 7) {
                 if (boardState[row][col]) return; // 이미 기물이 있으면 불가
 
@@ -603,45 +608,26 @@
                 chosenTierPiece = null;
                 remainingPlacements--;
 
-                if (gameMode === "PVC") {
-                    // AI도 기물 하나 골라서 배치
-                    aiPlaceEnemyPiece();
-                    renderPieces();
-
-                    let totalPiecesOnBoard = 0;
-                    for(let r=0; r<8; r++) {
-                        for(let c=0; c<8; c++) {
-                            if(boardState[r][c]) totalPiecesOnBoard++;
-                        }
+                let totalPiecesOnBoard = 0;
+                for(let r=0; r<8; r++) {
+                    for(let c=0; c<8; c++) {
+                        if(boardState[r][c]) totalPiecesOnBoard++;
                     }
+                }
 
-                    if (currentDraftTier === 1 && remainingPlacements === 0 && totalPiecesOnBoard >= 32) {
+                let isFinishedAll = (remainingPlacements <= 0 || totalPiecesOnBoard >= 32);
+
+                if (gameMode === "PVC") {
+                    if (isFinishedAll) {
                         gameState = "GAMEPLAY";
                         turn = "player";
                         statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
                         recordBoardState();
                     } else {
-                        if (remainingPlacements === 0) {
-                            if (currentDraftTier > 1) {
-                                currentDraftTier--;
-                                if (currentDraftTier === 5 || currentDraftTier === 4) remainingPlacements = 1;
-                                else if (currentDraftTier >= 3) remainingPlacements = 2;
-                                else if (currentDraftTier <= 2) remainingPlacements = 2; // 각 티어별 개수 조정 가능
-                            }
-                        }
-                        // 다시 다음 1개 고르기 진행
-                        startSingleDraftTurn();
+                        // AI 차례로 전환해서 AI가 기물 골라 배치
+                        aiTurnDraftStep();
                     }
                 } else {
-                    let totalPiecesOnBoard = 0;
-                    for(let r=0; r<8; r++) {
-                        for(let c=0; c<8; c++) {
-                            if(boardState[r][c]) totalPiecesOnBoard++;
-                        }
-                    }
-
-                    let isFinishedAll = (currentDraftTier === 1 && remainingPlacements === 0 && totalPiecesOnBoard >= 32);
-
                     sendNetworkData({
                         type: 'PLACE_DRAFT_PIECE',
                         r: row,
@@ -661,12 +647,12 @@
                         }
                         recordBoardState();
                     } else {
-                        if (remainingPlacements === 0 && currentDraftTier > 1) {
+                        // 상대방 차례로 전환
+                        draftTurn = "enemy";
+                        if (remainingPlacements % 2 === 0 && currentDraftTier > 1) {
                             currentDraftTier--;
-                            if (currentDraftTier === 5 || currentDraftTier === 4) remainingPlacements = 1;
-                            else remainingPlacements = 2;
                         }
-                        statusText.innerHTML = "Waiting for opponent's move...";
+                        startSingleDraftTurn();
                     }
                 }
             }
@@ -737,16 +723,42 @@
         }
     }
 
-    function aiPlaceEnemyPiece() {
+    function aiTurnDraftStep() {
+        // AI가 기물 선택 및 배치
+        const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
+        const aiPiece = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
+        
         let emptySpots = [];
         for (let r = 0; r <= 1; r++) {
             for (let c = 0; c < 8; c++) {
                 if (!boardState[r][c]) emptySpots.push({r, c});
             }
         }
-        if (emptySpots.length > 0 && enemyChosenTierPiece) {
+
+        if (emptySpots.length > 0) {
             const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-            boardState[spot.r][spot.c] = { ...enemyChosenTierPiece, side: 'enemy' };
+            boardState[spot.r][spot.c] = { ...aiPiece, tier: currentDraftTier, side: 'enemy' };
+        }
+        renderPieces();
+
+        let totalPiecesOnBoard = 0;
+        for(let r=0; r<8; r++) {
+            for(let c=0; c<8; c++) {
+                if(boardState[r][c]) totalPiecesOnBoard++;
+            }
+        }
+
+        if (remainingPlacements <= 0 || totalPiecesOnBoard >= 32) {
+            gameState = "GAMEPLAY";
+            turn = "player";
+            statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
+            recordBoardState();
+        } else {
+            draftTurn = "player";
+            if (remainingPlacements % 2 === 0 && currentDraftTier > 1) {
+                currentDraftTier--;
+            }
+            startSingleDraftTurn();
         }
     }
 
