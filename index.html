@@ -33,6 +33,8 @@
         .btn-pvp:hover { background-color: #26af5f; }
         .btn-pvc { background-color: #ff4757; }
         .btn-pvc:hover { background-color: #ff6b81; }
+        .btn-custom { background-color: #70a1ff; }
+        .btn-custom:hover { background-color: #5352ed; }
 
         #status-panel {
             margin-bottom: 2vh; font-size: clamp(13px, 2vmin, 16px);
@@ -101,7 +103,8 @@
 <div id="main-menu">
     <h1>Cosmageddon</h1>
     <button class="menu-btn btn-pvc" onclick="startPVCMode()">🤖 Player vs Computer</button>
-    <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Host / Join PVP Match</button>
+    <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Quick Match PVP</button>
+    <button class="menu-btn btn-custom" onclick="showCustomMenu()">🔑 Custom Room PVP</button>
 </div>
 
 <div id="game-wrapper" style="display: none;">
@@ -164,8 +167,7 @@
     let playerTierPlacedCount = 0;
     let enemyTierPlacedCount = 0;  
 
-    // Simultaneous Tier Draft variables (for all tiers)
-    let tierChoicePhase = "CHOOSING"; // "CHOOSING" or "PLACING"
+    let tierChoicePhase = "CHOOSING"; 
     let tierChoiceMade = false;
     let myTierChoice = null;
     let myTierTime = 0;
@@ -199,6 +201,80 @@
         document.getElementById('game-wrapper').style.display = 'block';
         showFactionButtons();
         createBoard();
+    }
+
+    function showCustomMenu() {
+        document.getElementById('main-menu').innerHTML = `
+            <h1>Cosmageddon</h1>
+            <p style="font-size: 13px; color: #a4b0be; margin-bottom: 12px;">Enter a room code to play with a friend.</p>
+            <input type="text" id="room-code-input" placeholder="Room Code (e.g. friend123)" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: none; box-sizing: border-box; text-align: center; font-size: 14px; background: #2f3542; color: white;">
+            <button class="menu-btn btn-custom" onclick="startCustomPVP()">Join / Create Room</button>
+            <button class="menu-btn" style="background-color: #57606f; margin-top: 6px;" onclick="location.reload()">Back</button>
+        `;
+    }
+
+    function startCustomPVP() {
+        const codeInput = document.getElementById('room-code-input');
+        const roomCode = codeInput ? codeInput.value.trim() : '';
+        if (!roomCode) {
+            alert("Please enter a room code!");
+            return;
+        }
+
+        gameMode = "PVP";
+        isDisconnectedHandled = false; isConnected = false;
+        myRaceSelected = false; enemyRaceSelected = false;
+        playerRace = ""; enemyRace = ""; gameState = "CHOOSE_RACE";
+        
+        tierIndex = 0; currentDraftTier = TIER_ORDER[tierIndex];
+        playerChosenPiece = null;
+        playerTierPlacedCount = 0; enemyTierPlacedCount = 0;
+        tierChoicePhase = "CHOOSING"; tierChoiceMade = false;
+        myTierChoice = null; myTierTime = 0; enemyTierChoice = null; enemyTierTime = 0;
+        clearTurnTimer(); if (pollTimer) clearInterval(pollTimer);
+
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('game-wrapper').style.display = 'block';
+        createBoard();
+
+        statusText.innerHTML = `🔍 Creating room [${roomCode}]...`;
+        buttonZone.innerHTML = "";
+
+        const targetPeerId = `cosmageddon_room_${roomCode}`;
+
+        // Try to create peer with the custom ID (Host)
+        peer = new Peer(targetPeerId, { host: 'cosmageddon-server.onrender.com', port: 443, path: '/peerjs', secure: true });
+
+        peer.on('open', (id) => {
+            isHost = true;
+            statusText.innerHTML = `⏳ <b>Waiting for friend...</b> (Room: ${roomCode})`;
+        });
+
+        peer.on('connection', (c) => {
+            conn = c;
+            isHost = true;
+            setupConnection();
+        });
+
+        peer.on('error', (err) => {
+            if (err.type === 'unavailable-id') {
+                // Room already exists, so join as Guest
+                peer.destroy();
+                statusText.innerHTML = `⚔️ Room found! Connecting to friend...`;
+
+                peer = new Peer({ host: 'cosmageddon-server.onrender.com', port: 443, path: '/peerjs', secure: true });
+                peer.on('open', () => {
+                    isHost = false;
+                    conn = peer.connect(targetPeerId);
+                    setupConnection();
+                });
+                peer.on('error', () => {
+                    handleOpponentDisconnect();
+                });
+            } else {
+                handleOpponentDisconnect();
+            }
+        });
     }
 
     function startPVPMode() {
@@ -261,7 +337,7 @@
         conn.on('data', handleNetworkData);
         conn.on('close', handleOpponentDisconnect);
         conn.on('error', handleOpponentDisconnect);
-        statusText.innerHTML = "🎮 Opponent Joined! Choose your faction within 5s:";
+        statusText.innerHTML = "🎮 Connected with friend! Choose your faction within 5s:";
         showFactionButtons();
         startTurnTimer(5, handleRaceSelectionTimeout);
     }
@@ -383,7 +459,7 @@
             checkBothRacesSelected();
         } else {
             sendNetworkData({ type: 'SELECT_RACE', race: race });
-            statusText.innerHTML = `Selected <b>${race}</b>. Waiting for opponent...`;
+            statusText.innerHTML = `Selected <b>${race}</b>. Waiting for friend...`;
             buttonZone.innerHTML = "";
             checkBothRacesSelected();
         }
@@ -431,7 +507,7 @@
                 if (gameMode === "PVC") {
                     const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
                     enemyTierChoice = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
-                    enemyTierTime = 0; // AI chooses instantly
+                    enemyTierTime = 0;
                 }
 
                 PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
@@ -471,7 +547,7 @@
                 statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Placement</b><br>Waiting for opponent to place...`;
                 highlightDraftZone(false);
                 if (gameMode === "PVP") {
-                    startTurnTimer(10, () => {}); // Display countdown for opponent placement
+                    startTurnTimer(10, () => {});
                 }
             }
         }
@@ -489,15 +565,12 @@
         playerChosenPiece = myTierChoice;
         
         if (gameMode === "PVC") {
-            // In PVC, AI is instant (time 0), player took time (time 1).
-            // Faster choice (AI) places second -> Player places first!
             draftTurn = "player";
         } else {
-            // Rule: Faster choice = places second, Slower choice = places first
             if (myTierTime < enemyTierTime) {
-                draftTurn = "enemy"; // I was faster, so opponent places first
+                draftTurn = "enemy"; 
             } else if (myTierTime > enemyTierTime) {
-                draftTurn = "player"; // I was slower, so I place first
+                draftTurn = "player"; 
             } else {
                 draftTurn = isHost ? "player" : "enemy";
             }
@@ -582,8 +655,8 @@
                     statusText.innerHTML = "🤖 Computer thinking...";
                     setTimeout(enemyTurn, 800);
                 } else {
-                    statusText.innerHTML = "⏳ Waiting for opponent's turn...";
-                    startTurnTimer(30, () => {}); // Display countdown for opponent's turn
+                    statusText.innerHTML = "⏳ Waiting for friend's turn...";
+                    startTurnTimer(30, () => {});
                 }
                 return; 
             } 
@@ -635,7 +708,7 @@
             statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click a piece to move.";
             startTurnTimer(30, handleTimeOut);
         } else {
-            statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
+            statusText.innerHTML = "⚔️ Battle Start! Waiting for friend's move...";
             if (gameMode === "PVP") startTurnTimer(30, () => {});
         }
         buttonZone.innerHTML = "";
@@ -739,7 +812,7 @@
         const currentStr = recordBoardState(); let count = 0;
         for (let i = 0; i < boardHistory.length; i++) if (boardHistory[i] === currentStr) count++;
         if (count >= 3) {
-            const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
+            const enemyLabel = gameMode === "PVC" ? "Computer" : "Friend";
             if (mover === 'player') endGame(`${enemyLabel} Wins! (Lost by Threefold Repetition)`);
             else endGame(`Victory is yours! (${enemyLabel} lost by Threefold Repetition)`);
             return true;
@@ -757,7 +830,7 @@
                 }
             }
         }
-        const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
+        const enemyLabel = gameMode === "PVC" ? "Computer" : "Friend";
         if (!playerAlive) { endGame(`${enemyLabel} Wins! You lose.`); return true; }
         if (!enemyAlive) { endGame("Victory is yours!"); return true; }
         return false;
