@@ -251,9 +251,13 @@
     let currentDraftTier = 6; 
     let playerSelectedPiece = null, enemySelectedPiece = null;
     let remainingPlacements = 0;
-    let draftTurn = "host";
     let turn = "player"; 
 
+    // 영구적인 순서 결정용 변수 (첫 티어에서 결정된 후 유지됨)
+    let isFixedFirstToChoose = null; // true면 내가 먼저 고르고 늦게 배치, false면 상대가 먼저 고르고 내가 먼저 배치
+    let draftOrderDetermined = false;
+
+    let pendingPlacementPiece = null;
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
     let selectedCell = null; 
     let validMoves = [];     
@@ -305,6 +309,8 @@
         playerRace = "";
         enemyRace = "";
         gameState = "CHOOSE_RACE";
+        draftOrderDetermined = false;
+        isFixedFirstToChoose = null;
         clearTurnTimer();
 
         if (pollTimer) clearInterval(pollTimer);
@@ -397,7 +403,7 @@
 
         statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
         showFactionButtons();
-        startTurnTimer(10, handleRaceSelectionTimeout);
+        startTurnTimer(5, handleRaceSelectionTimeout);
     }
 
     function showFactionButtons() {
@@ -429,6 +435,14 @@
         } else if (data.type === 'BOTH_TIMEOUT') {
             clearTurnTimer();
             endGame("Both players failed to choose. Defeat!");
+        } else if (data.type === 'SELECT_DRAFT') {
+            enemySelectedPiece = data.piece;
+            // 첫 번째 티어에서 상대방의 선택 시각을 받아 순서 확정
+            if (!draftOrderDetermined && currentDraftTier === 6) {
+                isFixedFirstToChoose = (myDraftChoiceTime <= data.timestamp);
+                draftOrderDetermined = true;
+            }
+            checkBothDraftSelected();
         } else if (data.type === 'PLACE_PIECE') {
             clearTurnTimer();
             const mirrorR = 7 - data.r;
@@ -436,8 +450,6 @@
             boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
             renderPieces();
 
-            draftTurn = data.nextDraftTurn;
-            
             if (data.finishedAllDraft) {
                 gameState = "GAMEPLAY";
                 turn = isHost ? "player" : "enemy";
@@ -449,7 +461,7 @@
                 }
                 recordBoardState();
             } else {
-                updatePvpDraftStatus();
+                startTierDraft();
             }
         } else if (data.type === 'MOVE') {
             clearTurnTimer();
@@ -492,7 +504,6 @@
         if (myRaceSelected && enemyRaceSelected) {
             clearTurnTimer();
             gameState = "DRAFT_LOOP";
-            draftTurn = "host";
             startTierDraft();
         }
     }
@@ -531,11 +542,15 @@
 
     function startTierDraft() {
         playerSelectedPiece = null;
+        enemySelectedPiece = null;
+        myDraftChoiceTime = 0;
+        pendingPlacementPiece = null;
+
         let totalToPlace = 1;
         if (currentDraftTier === 6) totalToPlace = 8;
         else if (currentDraftTier >= 3) totalToPlace = 2;
 
-        statusText.innerHTML = `Choose Tier ${currentDraftTier} piece. (Deploy ${totalToPlace})`;
+        statusText.innerHTML = `[Tier ${currentDraftTier}] Choose your piece. (Deploy ${totalToPlace})`;
         buttonZone.innerHTML = "";
 
         PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
@@ -545,10 +560,21 @@
             btn.onclick = () => chooseDraftPiece(piece);
             buttonZone.appendChild(btn);
         });
+
+        startTurnTimer(10, handleDraftSelectionTimeout);
+    }
+
+    function handleDraftSelectionTimeout() {
+        clearTurnTimer();
+        sendNetworkData({ type: 'TIMEOUT_LOSE' });
+        endGame("Defeat! (Time out choosing piece)");
     }
 
     function chooseDraftPiece(piece) {
+        if (playerSelectedPiece) return;
+        clearTurnTimer();
         playerSelectedPiece = { ...piece, tier: currentDraftTier };
+        myDraftChoiceTime = Date.now();
 
         if (currentDraftTier === 6) remainingPlacements = 8;
         else if (currentDraftTier >= 3) remainingPlacements = 2; 
@@ -557,27 +583,60 @@
         buttonZone.innerHTML = "";
 
         if (gameMode === "PVC") {
-            statusText.innerHTML = `Deploy ${piece.emoji} on bottom 2 rows. (Remaining: ${remainingPlacements})`;
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
             enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
+            
+            if (!draftOrderDetermined && currentDraftTier === 6) {
+                isFixedFirstToChoose = true; // PVC에서는 플레이어가 먼저 고른 것으로 고정
+                draftOrderDetermined = true;
+            }
+            setupPlacementPhase();
         } else {
-            updatePvpDraftStatus();
-        }
+            sendNetworkData({
+                type: 'SELECT_DRAFT',
+                piece: playerSelectedPiece,
+                timestamp: myDraftChoiceTime
+            });
 
-        highlightDraftZone(true);
+            if (!draftOrderDetermined && currentDraftTier === 6) {
+                // 아직 상대방 선택이 안 왔으면 대기
+                statusText.innerHTML = `Waiting for opponent to choose Tier ${currentDraftTier} piece...`;
+                startTurnTimer(10, handleDraftSelectionTimeout);
+            } else {
+                checkBothDraftSelected();
+            }
+        }
     }
 
-    function updatePvpDraftStatus() {
-        const isMyTurn = (isHost && draftTurn === "host") || (!isHost && draftTurn === "guest");
-        if (isMyTurn) {
-            statusText.innerHTML = `Deploy ${playerSelectedPiece.emoji} on bottom 2 rows. (Your Turn - Remaining: ${remainingPlacements})`;
-            highlightDraftZone(true);
-            startTurnTimer(30, handleTimeOut);
-        } else {
+    function checkBothDraftSelected() {
+        if (playerSelectedPiece && enemySelectedPiece) {
             clearTurnTimer();
-            statusText.innerHTML = `Waiting for opponent to deploy a piece... (Remaining: ${remainingPlacements})`;
-            highlightDraftZone(false);
+            setupPlacementPhase();
         }
+    }
+
+    function setupPlacementPhase() {
+        pendingPlacementPiece = playerSelectedPiece;
+        playerSelectedPiece = null;
+
+        // 첫 티어에서 정해진 순서(isFixedFirstToChoose)를 모든 티어에 그대로 적용
+        // 먼저 고른 사람(isFixedFirstToChoose === true) -> 늦게 배치 (상대방이 먼저 배치하는 것을 기다림)
+        // 늦게 고른 사람(isFixedFirstToChoose === false) -> 먼저 배치
+        if (isFixedFirstToChoose) {
+            statusText.innerHTML = `You chose first! Wait for opponent to place their piece...`;
+            highlightDraftZone(false);
+            startTurnTimer(10, handlePlacementTimeout);
+        } else {
+            statusText.innerHTML = `You chose later! Deploy ${pendingPlacementPiece.emoji} on board first. (10s)`;
+            highlightDraftZone(true);
+            startTurnTimer(10, handlePlacementTimeout);
+        }
+    }
+
+    function handlePlacementTimeout() {
+        clearTurnTimer();
+        sendNetworkData({ type: 'TIMEOUT_LOSE' });
+        endGame("Defeat! (Time out placing piece)");
     }
 
     function highlightDraftZone(on) {
@@ -589,31 +648,28 @@
     }
 
     function handleCellClick(row, col) {
-        if (gameState === "DRAFT_LOOP" && playerSelectedPiece) {
+        if (gameState === "DRAFT_LOOP" && pendingPlacementPiece) {
             if (row === 6 || row === 7) {
                 if (boardState[row][col]) return;
 
-                if (gameMode === "PVP") {
-                    const isMyTurn = (isHost && draftTurn === "host") || (!isHost && draftTurn === "guest");
-                    if (!isMyTurn) return; 
-                }
-
                 clearTurnTimer();
-                boardState[row][col] = { ...playerSelectedPiece, side: 'player' };
-                
+                boardState[row][col] = { ...pendingPlacementPiece, side: 'player' };
+                renderPieces();
+                highlightDraftZone(false);
+
+                const placedPiece = pendingPlacementPiece;
+                pendingPlacementPiece = null;
+
                 if (gameMode === "PVC") {
-                    aiPlaceEnemyPiece(); 
+                    aiPlaceEnemyPiece();
                     renderPieces();
                     remainingPlacements--;
 
                     if (remainingPlacements > 0) {
-                        statusText.innerHTML = `Deploy remaining ${playerSelectedPiece.emoji}. (Remaining: ${remainingPlacements})`;
+                        startTierDraft();
                     } else {
-                        highlightDraftZone(false);
-                        playerSelectedPiece = null;
-                        
                         if (currentDraftTier > 1) {
-                            currentDraftTier--; 
+                            currentDraftTier--;
                             startTierDraft();
                         } else {
                             gameState = "GAMEPLAY";
@@ -623,10 +679,7 @@
                         }
                     }
                 } else {
-                    renderPieces();
                     remainingPlacements--;
-
-                    const nextTurn = draftTurn === "host" ? "guest" : "host";
 
                     let totalPiecesOnBoard = 0;
                     for(let r=0; r<8; r++) {
@@ -641,15 +694,13 @@
                         type: 'PLACE_PIECE',
                         r: row,
                         c: col,
-                        piece: boardState[row][col],
-                        nextDraftTurn: nextTurn,
+                        piece: placedPiece,
                         finishedAllDraft: isFinishedAll
                     });
 
                     if (isFinishedAll) {
                         gameState = "GAMEPLAY";
                         turn = isHost ? "player" : "enemy";
-                        highlightDraftZone(false);
                         if (turn === "player") {
                             statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
                             startTurnTimer(30, handleTimeOut);
@@ -658,19 +709,10 @@
                         }
                         recordBoardState();
                     } else {
-                        if (remainingPlacements === 0) {
-                            highlightDraftZone(false);
-                            playerSelectedPiece = null;
-                            if (currentDraftTier > 1) {
-                                currentDraftTier--;
-                                startTierDraft();
-                                draftTurn = nextTurn;
-                                updatePvpDraftStatus();
-                                return;
-                            }
+                        if (remainingPlacements === 0 && currentDraftTier > 1) {
+                            currentDraftTier--;
                         }
-                        draftTurn = nextTurn;
-                        updatePvpDraftStatus();
+                        startTierDraft();
                     }
                 }
             }
