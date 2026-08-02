@@ -248,17 +248,18 @@
 
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
-    let currentDraftTier = 6; 
+    
+    // 철저한 티어 진행 제어 변수들
+    const TIER_ORDER = [6, 5, 4, 3, 2, 1];
+    let tierIndex = 0; 
+    let currentDraftTier = 6;
+    
+    const TIER_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
+    
     let tierChosenPiece = null;      
     let enemyTierChosenPiece = null; 
     let currentTierPlacedCount = 0;  
     let enemyTierPlacedCount = 0;    
-
-    // 명확한 티어별 순서 배열 및 수량 정의 (6 -> 5 -> 4 -> 3 -> 2 -> 1)
-    const TIER_ORDER = [6, 5, 4, 3, 2, 1];
-    let tierIndex = 0; // TIER_ORDER의 인덱스로 현재 티어를 제어하여 절대 누락 방지
-
-    const TIER_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
 
     let turn = "player"; 
     let draftTurn = "player"; 
@@ -314,6 +315,7 @@
         playerRace = "";
         enemyRace = "";
         gameState = "CHOOSE_RACE";
+        
         tierIndex = 0;
         currentDraftTier = TIER_ORDER[tierIndex];
         tierChosenPiece = null;
@@ -571,9 +573,9 @@
             highlightDraftZone(false);
             buttonZone.innerHTML = "";
 
+            let requiredCount = TIER_COUNTS[currentDraftTier];
             if (!tierChosenPiece) {
-                let requiredCount = TIER_COUNTS[currentDraftTier];
-                statusText.innerHTML = `[Tier ${currentDraftTier}] Choose 1 piece type for this tier (Total ${requiredCount} needed).`;
+                statusText.innerHTML = `[Tier ${currentDraftTier}] Choose 1 piece type for this tier (Placed ${currentTierPlacedCount}/${requiredCount}).`;
                 
                 PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
                     const btn = document.createElement('button');
@@ -583,7 +585,6 @@
                     buttonZone.appendChild(btn);
                 });
             } else {
-                let requiredCount = TIER_COUNTS[currentDraftTier];
                 statusText.innerHTML = `[Tier ${currentDraftTier}] Place ${tierChosenPiece.emoji} ${tierChosenPiece.name} (${currentTierPlacedCount + 1}/${requiredCount}) on Rows 6-7.`;
                 highlightDraftZone(true);
             }
@@ -606,7 +607,7 @@
         }
 
         let requiredCount = TIER_COUNTS[currentDraftTier];
-        statusText.innerHTML = `[Tier ${currentDraftTier}] Place ${tierChosenPiece.emoji} ${tierChosenPiece.name} (1/${requiredCount}) on Rows 6-7.`;
+        statusText.innerHTML = `[Tier ${currentDraftTier}] Place ${tierChosenPiece.emoji} ${tierChosenPiece.name} (${currentTierPlacedCount + 1}/${requiredCount}) on Rows 6-7.`;
         highlightDraftZone(true);
     }
 
@@ -643,15 +644,14 @@
                     tierChosenPiece = null;
                     currentTierPlacedCount = 0;
                     if (tierIndex < TIER_ORDER.length - 1) {
-                        tierIndex++; // 정확한 인덱스 증가로 6 -> 5 -> 4 -> 3 -> 2 -> 1 보장
+                        tierIndex++; // 정확히 다음 티어로 인덱스 1단계씩만 전진
                         currentDraftTier = TIER_ORDER[tierIndex];
                         tierChanged = true;
                         nextTierIndexVal = tierIndex;
                     }
                 }
 
-                let playerTotalPlaced = countPlayerPieces();
-                let finishedAll = (tierIndex === TIER_ORDER.length - 1 && tierFinished && playerTotalPlaced >= 16);
+                let finishedAll = (tierIndex === TIER_ORDER.length - 1 && tierFinished && countPlayerPieces() >= 16);
 
                 if (gameMode === "PVC") {
                     if (finishedAll) {
@@ -772,14 +772,13 @@
 
     let aiTierChosenPiece = null;
     let aiTierPlacedCount = 0;
+    let aiTierIndex = 0;
 
     function aiChooseTierPiece() {
         const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
         aiTierChosenPiece = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
         aiTierPlacedCount = 0;
     }
-
-    let aiTierIndex = 0;
 
     function aiPerformDraftTurn(playerTierFinished) {
         if (!aiTierChosenPiece) {
@@ -806,14 +805,12 @@
         if (aiTierFinished) {
             aiTierChosenPiece = null;
             aiTierPlacedCount = 0;
-            // AI 티어 인덱스 동기화
             if (aiTierIndex < TIER_ORDER.length - 1) {
                 aiTierIndex++;
             }
         }
 
-        let enemyTotalPlaced = countEnemyPieces();
-        let finishedAll = (tierIndex === TIER_ORDER.length - 1 && aiTierFinished && enemyTotalPlaced >= 16);
+        let finishedAll = (tierIndex === TIER_ORDER.length - 1 && aiTierFinished && countEnemyPieces() >= 16);
 
         if (finishedAll) {
             gameState = "GAMEPLAY";
