@@ -275,11 +275,10 @@
     buttonZone.innerHTML = "";
 
     const peerConfig = {
-        host: 'cosmageddon-server.onrender.com',
-        port: 443,
-        path: '/peerjs',
-        secure: true
-    };
+    host: 'cosmageddon-server.onrender.com',
+    path: '/peerjs',
+    secure: true
+};
 
     // Generate a unique random Peer ID
     peer = new Peer(peerConfig);
