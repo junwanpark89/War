@@ -122,6 +122,9 @@
 
     let gameMode = "PVC";
     let peer = null, conn = null;
+    let guestConn = null;
+    let spectatorConns = [];
+    let myRole = 'host';
     let isHost = false, isConnected = false, isDisconnectedHandled = false, pollTimer = null;
     
     let myRaceSelected = false, enemyRaceSelected = false;
@@ -183,7 +186,7 @@
     function clearTurnTimer() { if (turnTimer) { clearInterval(turnTimer); turnTimer = null; } }
     function startTurnTimer(seconds, onTimeout) {
         clearTurnTimer(); 
-        if (gameMode !== "PVP") return; 
+        if (gameMode !== "PVP" || myRole === 'spectator') return; 
         timeLeft = seconds; updateTimerDisplay();
         turnTimer = setInterval(() => {
             timeLeft--; updateTimerDisplay();
@@ -191,12 +194,13 @@
         }, 1000);
     }
     function updateTimerDisplay() {
-        if (gameMode !== "PVP" || gameState === "GAMEOVER") return;
+        if (gameMode !== "PVP" || gameState === "GAMEOVER" || myRole === 'spectator') return;
         statusText.innerHTML = statusText.innerHTML.replace(/ ⏱️ \d+s$/, '') + ` ⏱️ ${timeLeft}s`;
     }
 
     function startPVCMode() {
         gameMode = "PVC";
+        myRole = 'host';
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('game-wrapper').style.display = 'block';
         showFactionButtons();
@@ -241,32 +245,67 @@
         buttonZone.innerHTML = "";
 
         const targetPeerId = `cosmageddon_room_${roomCode}`;
+        isHost = true;
+        myRole = 'host';
+        guestConn = null;
+        spectatorConns = [];
 
-        // Try to create peer with the custom ID (Host)
         peer = new Peer(targetPeerId, { host: 'cosmageddon-server.onrender.com', port: 443, path: '/peerjs', secure: true });
 
         peer.on('open', (id) => {
             isHost = true;
+            myRole = 'host';
             statusText.innerHTML = `⏳ <b>Waiting for friend...</b> (Room: ${roomCode})`;
         });
 
         peer.on('connection', (c) => {
-            conn = c;
-            isHost = true;
-            setupConnection();
+            if (isHost) {
+                if (!guestConn) {
+                    guestConn = c;
+                    setupHostConnection(guestConn, 'guest');
+                } else {
+                    spectatorConns.push(c);
+                    setupHostConnection(c, 'spectator');
+                }
+            }
         });
 
         peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
-                // Room already exists, so join as Guest
                 peer.destroy();
-                statusText.innerHTML = `⚔️ Room found! Connecting to friend...`;
+                statusText.innerHTML = `👀 Room is active. Connecting as Spectator...`;
 
                 peer = new Peer({ host: 'cosmageddon-server.onrender.com', port: 443, path: '/peerjs', secure: true });
                 peer.on('open', () => {
                     isHost = false;
+                    myRole = 'spectator';
                     conn = peer.connect(targetPeerId);
-                    setupConnection();
+                    
+                    conn.on('open', () => {
+                        isConnected = true;
+                        statusText.innerHTML = `👀 <b>Spectating Match</b> (Read-only)`;
+                        buttonZone.innerHTML = "";
+                    });
+
+                    conn.on('data', (data) => {
+                        if (data.type === 'SYNC_STATE') {
+                            boardState = data.boardState;
+                            playerRace = data.playerRace;
+                            enemyRace = data.enemyRace;
+                            gameState = data.gameState;
+                            renderPieces();
+                        } else {
+                            handleNetworkData(data);
+                        }
+                    });
+
+                    conn.on('close', () => {
+                        alert("The match has ended or host disconnected.");
+                        location.reload();
+                    });
+                    conn.on('error', () => {
+                        handleOpponentDisconnect();
+                    });
                 });
                 peer.on('error', () => {
                     handleOpponentDisconnect();
@@ -282,6 +321,7 @@
         isDisconnectedHandled = false; isConnected = false;
         myRaceSelected = false; enemyRaceSelected = false;
         playerRace = ""; enemyRace = ""; gameState = "CHOOSE_RACE";
+        isHost = false; myRole = 'guest'; guestConn = null; spectatorConns = [];
         
         tierIndex = 0; currentDraftTier = TIER_ORDER[tierIndex];
         playerChosenPiece = null;
@@ -302,7 +342,13 @@
             statusText.innerHTML = "🔍 Looking for an opponent...";
             requestMatchmaking(myPeerId);
         });
-        peer.on('connection', (c) => { conn = c; isHost = true; setupConnection(); });
+        peer.on('connection', (c) => { 
+            conn = c; 
+            guestConn = c; 
+            isHost = true; 
+            myRole = 'host'; 
+            setupConnection(); 
+        });
         peer.on('error', (err) => handleOpponentDisconnect());
     }
 
@@ -313,10 +359,13 @@
                 if (data.status === "matched") {
                     if (pollTimer) clearInterval(pollTimer);
                     if (data.isHost) {
-                        isHost = true; statusText.innerHTML = "⌛ Opponent found! Waiting for connection...";
+                        isHost = true; myRole = 'host';
+                        statusText.innerHTML = "⌛ Opponent found! Waiting for connection...";
                     } else {
-                        isHost = false; statusText.innerHTML = "⚔️ Opponent found! Connecting...";
+                        isHost = false; myRole = 'guest';
+                        statusText.innerHTML = "⚔️ Opponent found! Connecting...";
                         conn = peer.connect(data.opponentId);
+                        guestConn = conn;
                         conn.on('open', setupConnection);
                     }
                 } else { if (!pollTimer) pollTimer = setInterval(() => requestMatchmaking(myPeerId), 1000); }
@@ -334,15 +383,59 @@
 
     function setupConnection() {
         if (pollTimer) clearInterval(pollTimer); isConnected = true;
+        guestConn = conn;
         conn.on('data', handleNetworkData);
         conn.on('close', handleOpponentDisconnect);
         conn.on('error', handleOpponentDisconnect);
-        statusText.innerHTML = "🎮 Connected with friend! Choose your faction within 5s:";
+        statusText.innerHTML = "🎮 Connected! Choose your faction within 5s:";
         showFactionButtons();
         startTurnTimer(5, handleRaceSelectionTimeout);
     }
 
+    function setupHostConnection(connection, role) {
+        isConnected = true;
+        connection.on('open', () => {
+            if (role === 'guest') {
+                statusText.innerHTML = "🎮 Friend Joined! Choose your faction within 5s:";
+                showFactionButtons();
+                startTurnTimer(5, handleRaceSelectionTimeout);
+            } else if (role === 'spectator') {
+                connection.send({
+                    type: 'SYNC_STATE',
+                    boardState: boardState,
+                    gameState: gameState,
+                    playerRace: playerRace,
+                    enemyRace: enemyRace,
+                    turn: turn
+                });
+            }
+        });
+
+        connection.on('data', (data) => {
+            if (role === 'guest') {
+                handleNetworkData(data);
+            }
+        });
+
+        connection.on('close', () => {
+            if (role === 'guest') {
+                handleOpponentDisconnect();
+            } else {
+                spectatorConns = spectatorConns.filter(c => c !== connection);
+            }
+        });
+
+        connection.on('error', () => {
+            if (role === 'guest') {
+                handleOpponentDisconnect();
+            } else {
+                spectatorConns = spectatorConns.filter(c => c !== connection);
+            }
+        });
+    }
+
     function showFactionButtons() {
+        if (myRole === 'spectator') return;
         buttonZone.innerHTML = `
             <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
             <button class="choice-btn" onclick="selectRace('Elf')">🧝 Elf</button>
@@ -350,12 +443,19 @@
         `;
     }
 
-    function sendNetworkData(data) { if (conn && conn.open) conn.send(data); }
+    function sendNetworkData(data) { 
+        if (isHost) {
+            if (guestConn && guestConn.open) guestConn.send(data);
+            spectatorConns.forEach(sc => { if (sc && sc.open) sc.send(data); });
+        } else {
+            if (conn && conn.open) conn.send(data); 
+        }
+    }
 
     function handleNetworkData(data) {
         if (data.type === 'SELECT_RACE') {
             enemyRace = data.race; enemyRaceSelected = true;
-            if (!myRaceSelected) statusText.innerHTML = `Opponent selected <b>${data.race}</b>. Please choose your faction!`;
+            if (!myRaceSelected && myRole !== 'spectator') statusText.innerHTML = `Opponent selected <b>${data.race}</b>. Please choose your faction!`;
             checkBothRacesSelected();
         } else if (data.type === 'TIER_CHOICE') {
             if (data.tier === currentDraftTier) {
@@ -390,14 +490,16 @@
             if (checkGameOver()) return;
 
             turn = "player";
-            statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
-            startTurnTimer(30, handleTimeOut);
+            if (myRole !== 'spectator') {
+                statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
+                startTurnTimer(30, handleTimeOut);
+            }
         }
     }
 
     function handleRaceSelectionTimeout() {
         clearTurnTimer();
-        if (gameMode !== "PVP") return;
+        if (gameMode !== "PVP" || myRole === 'spectator') return;
         if (!myRaceSelected && !enemyRaceSelected) { 
             sendNetworkData({ type: 'BOTH_TIMEOUT' }); 
             endGame("Both players failed to choose. Defeat!"); 
@@ -410,14 +512,14 @@
 
     function handleDraftTimeout() {
         clearTurnTimer();
-        if (gameMode !== "PVP") return;
+        if (gameMode !== "PVP" || myRole === 'spectator') return;
         sendNetworkData({ type: 'TIMEOUT_LOSE' });
         endGame("Defeat! (Time out)");
     }
 
     function handleTimeOut() { 
         clearTurnTimer(); 
-        if (gameMode !== "PVP") return;
+        if (gameMode !== "PVP" || myRole === 'spectator') return;
         sendNetworkData({ type: 'TIMEOUT_LOSE' }); 
         endGame("Defeat! (Time out)"); 
     }
@@ -449,7 +551,7 @@
     }
 
     function selectRace(race) {
-        if (myRaceSelected) return;
+        if (myRaceSelected || myRole === 'spectator') return;
         myRaceSelected = true; playerRace = race; clearTurnTimer();
 
         if (gameMode === "PVC") {
@@ -497,12 +599,16 @@
         if (tierChoicePhase === "CHOOSING") {
             if (!tierChoiceMade) {
                 let draftTimeLimit = (currentDraftTier === 6) ? 5 : 10;
-                if (gameMode === "PVP") {
+                if (gameMode === "PVP" && myRole !== 'spectator') {
                     statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Simultaneous Draft</b><br>Choose your unit within ${draftTimeLimit}s!`;
                     startTurnTimer(draftTimeLimit, handleTierChoiceTimeout);
+                } else if (myRole === 'spectator') {
+                    statusText.innerHTML = `👀 <b>Tier ${currentDraftTier} Simultaneous Draft</b> (Spectating)`;
                 } else {
                     statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Draft</b><br>Choose your unit!`;
                 }
+
+                if (myRole === 'spectator') return;
 
                 if (gameMode === "PVC") {
                     const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
@@ -537,6 +643,11 @@
         } else {
             let required = TIER_PER_PLAYER_COUNTS[currentDraftTier];
             let remaining = required - playerTierPlacedCount;
+            if (myRole === 'spectator') {
+                statusText.innerHTML = `👀 <b>Tier ${currentDraftTier} Placement</b> (Spectating)`;
+                highlightDraftZone(false);
+                return;
+            }
             if (draftTurn === "player") {
                 statusText.innerHTML = `🛡️ <b>Tier ${currentDraftTier} Placement</b><br>Place ${myTierChoice.emoji} (Need ${remaining} more) within 10s on Rows 6-7.`;
                 highlightDraftZone(true);
@@ -581,7 +692,7 @@
 
     function handleTierChoiceTimeout() {
         clearTurnTimer();
-        if (gameMode !== "PVP") return;
+        if (gameMode !== "PVP" || myRole === 'spectator') return;
         if (!tierChoiceMade && !enemyTierChoice) {
             sendNetworkData({ type: 'BOTH_TIMEOUT' });
             endGame(`Both failed to choose Tier ${currentDraftTier} in time. Defeat!`);
@@ -600,6 +711,8 @@
     }
 
     function handleCellClick(row, col) {
+        if (myRole === 'spectator') return;
+
         if (gameState === "DRAFT_LOOP") {
             if (tierChoicePhase === "PLACING") {
                 if (draftTurn !== "player" || !myTierChoice) return;
@@ -655,7 +768,7 @@
                     statusText.innerHTML = "🤖 Computer thinking...";
                     setTimeout(enemyTurn, 800);
                 } else {
-                    statusText.innerHTML = "⏳ Waiting for friend's turn...";
+                    statusText.innerHTML = "⏳ Waiting for opponent's turn...";
                     startTurnTimer(30, () => {});
                 }
                 return; 
@@ -704,11 +817,13 @@
         gameState = "GAMEPLAY";
         turn = (gameMode === "PVP" && !isHost) ? "enemy" : "player"; 
         
-        if (turn === "player") {
+        if (myRole === 'spectator') {
+            statusText.innerHTML = "👀 <b>Match in Progress</b> (Spectating)";
+        } else if (turn === "player") {
             statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click a piece to move.";
             startTurnTimer(30, handleTimeOut);
         } else {
-            statusText.innerHTML = "⚔️ Battle Start! Waiting for friend's move...";
+            statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
             if (gameMode === "PVP") startTurnTimer(30, () => {});
         }
         buttonZone.innerHTML = "";
@@ -812,7 +927,7 @@
         const currentStr = recordBoardState(); let count = 0;
         for (let i = 0; i < boardHistory.length; i++) if (boardHistory[i] === currentStr) count++;
         if (count >= 3) {
-            const enemyLabel = gameMode === "PVC" ? "Computer" : "Friend";
+            const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
             if (mover === 'player') endGame(`${enemyLabel} Wins! (Lost by Threefold Repetition)`);
             else endGame(`Victory is yours! (${enemyLabel} lost by Threefold Repetition)`);
             return true;
@@ -830,7 +945,7 @@
                 }
             }
         }
-        const enemyLabel = gameMode === "PVC" ? "Computer" : "Friend";
+        const enemyLabel = gameMode === "PVC" ? "Computer" : "Opponent";
         if (!playerAlive) { endGame(`${enemyLabel} Wins! You lose.`); return true; }
         if (!enemyAlive) { endGame("Victory is yours!"); return true; }
         return false;
