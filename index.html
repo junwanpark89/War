@@ -254,7 +254,7 @@
     let currentTierPlacedCount = 0;  
     let enemyTierPlacedCount = 0;    
 
-    // 정확한 티어별 개수: 6(8개), 5(2개), 4(2개), 3(2개), 2(1개), 1(1개)
+    // 엄격한 티어별 배치 수량 매핑 (6부터 1까지 총 16개)
     const TIER_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
 
     let turn = "player"; 
@@ -636,7 +636,7 @@
                     tierChosenPiece = null;
                     currentTierPlacedCount = 0;
                     if (currentDraftTier > 1) {
-                        currentDraftTier--;
+                        currentDraftTier--; // 6 -> 5 -> 4 -> 3 -> 2 -> 1 순차 하강 보장
                         tierChanged = true;
                         nextTierVal = currentDraftTier;
                     }
@@ -796,6 +796,10 @@
         if (aiTierFinished) {
             aiTierChosenPiece = null;
             aiTierPlacedCount = 0;
+            // AI 측에서도 티어가 끝나면 다음 티어로 순차 감소
+            if (currentDraftTier > 1) {
+                currentDraftTier--;
+            }
         }
 
         let enemyTotalPlaced = countEnemyPieces();
