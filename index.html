@@ -271,7 +271,7 @@
     document.getElementById('game-wrapper').style.display = 'block';
     createBoard();
 
-    statusText.innerHTML = "🔍 접속 중...";
+    statusText.innerHTML = "🔍 Connecting to server...";
     buttonZone.innerHTML = "";
 
     const peerConfig = {
@@ -281,13 +281,13 @@
         secure: true
     };
 
-    // 고정 ID 대신 랜덤 Peer ID 생성
+    // Generate a unique random Peer ID
     peer = new Peer(peerConfig);
 
     peer.on('open', (myPeerId) => {
-        statusText.innerHTML = "🔍 상대를 찾는 중...";
+        statusText.innerHTML = "🔍 Searching for an opponent...";
         
-        // Render 백엔드에 대기열 매칭 요청
+        // Request matchmaking from the Queue system
         fetch('https://cosmageddon-server.onrender.com/api/matchmaking', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -296,9 +296,9 @@
         .then(res => res.json())
         .then(data => {
             if (data.role === 'host') {
-                // 내가 먼저 도착함 -> 상대방이 들어올 때까지 대기
+                // First to arrive -> Wait in queue for Guest
                 isHost = true;
-                statusText.innerHTML = "⌛ 다른 플레이어를 기다리는 중...";
+                statusText.innerHTML = "⌛ Waiting for an opponent to join...";
 
                 peer.on('connection', (c) => {
                     conn = c;
@@ -306,7 +306,7 @@
                 });
 
             } else if (data.role === 'guest') {
-                // 먼저 기다리던 플레이어(Host)를 발견함 -> P2P 연결 시도!
+                // Opponent found -> Connect directly via PeerJS P2P
                 isHost = false;
                 conn = peer.connect(data.hostId, peerConfig);
                 
@@ -317,15 +317,15 @@
         })
         .catch(err => {
             console.error("Matchmaking error:", err);
-            statusText.innerHTML = "❌ 매칭 서버 연결 실패";
+            statusText.innerHTML = "❌ Matchmaking server connection failed";
         });
     });
 
     peer.on('error', (err) => {
+        console.error("PeerJS error:", err);
         handleOpponentDisconnect();
     });
 }
-
     function handleOpponentDisconnect() {
         if (!isConnected || isDisconnectedHandled) return;
         isDisconnectedHandled = true;
