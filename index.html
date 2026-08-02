@@ -248,14 +248,14 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     let currentDraftTier = 6; 
-    let playerSelectedPiece = null, enemySelectedPiece = null;
+    let chosenTierPiece = null; // 현재 티어에서 선택한 고정 기물
+    let enemyChosenTierPiece = null; // 상대방이 현재 티어에서 선택한 고정 기물
     let remainingPlacements = 0;
     let turn = "player"; 
 
     let isFixedFirstToChoose = null; 
     let draftOrderDetermined = false;
 
-    let pendingPlacementPiece = null;
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
     let selectedCell = null; 
     let validMoves = [];     
@@ -434,7 +434,7 @@
             clearTurnTimer();
             endGame("Both players failed to choose. Defeat!");
         } else if (data.type === 'SELECT_DRAFT') {
-            enemySelectedPiece = data.piece;
+            enemyChosenTierPiece = { ...data.piece, tier: currentDraftTier };
             if (!draftOrderDetermined && currentDraftTier === 6) {
                 isFixedFirstToChoose = (myDraftChoiceTime <= data.timestamp);
                 draftOrderDetermined = true;
@@ -447,6 +447,8 @@
             boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
             renderPieces();
 
+            remainingPlacements--;
+
             if (data.finishedAllDraft) {
                 gameState = "GAMEPLAY";
                 turn = isHost ? "player" : "enemy";
@@ -458,7 +460,17 @@
                 }
                 recordBoardState();
             } else {
-                startTierDraft();
+                if (remainingPlacements === 0) {
+                    if (currentDraftTier > 1) {
+                        currentDraftTier--;
+                        chosenTierPiece = null;
+                        enemyChosenTierPiece = null;
+                        startTierDraft();
+                    }
+                } else {
+                    // 남은 배치 횟수가 있다면 내가 놓을 차례
+                    setupPlacementTurn(true);
+                }
             }
         } else if (data.type === 'MOVE') {
             clearTurnTimer();
@@ -538,16 +550,16 @@
     }
 
     function startTierDraft() {
-        playerSelectedPiece = null;
-        enemySelectedPiece = null;
+        chosenTierPiece = null;
+        enemyChosenTierPiece = null;
         myDraftChoiceTime = 0;
-        pendingPlacementPiece = null;
 
         let totalToPlace = 1;
         if (currentDraftTier === 6) totalToPlace = 8;
         else if (currentDraftTier >= 3) totalToPlace = 2;
+        remainingPlacements = totalToPlace;
 
-        statusText.innerHTML = `[Tier ${currentDraftTier}] Choose your piece. (Deploy ${totalToPlace})`;
+        statusText.innerHTML = `[Tier ${currentDraftTier}] Choose your piece to deploy (${totalToPlace} times).`;
         buttonZone.innerHTML = "";
 
         PIECE_DATABASE[playerRace][currentDraftTier].forEach(piece => {
@@ -568,30 +580,26 @@
     }
 
     function chooseDraftPiece(piece) {
-        if (playerSelectedPiece) return;
+        if (chosenTierPiece) return;
         clearTurnTimer();
-        playerSelectedPiece = { ...piece, tier: currentDraftTier };
+        chosenTierPiece = { ...piece, tier: currentDraftTier };
         myDraftChoiceTime = Date.now();
-
-        if (currentDraftTier === 6) remainingPlacements = 8;
-        else if (currentDraftTier >= 3) remainingPlacements = 2; 
-        else remainingPlacements = 1;
 
         buttonZone.innerHTML = "";
 
         if (gameMode === "PVC") {
             const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
-            enemySelectedPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
+            enemyChosenTierPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
             
             if (!draftOrderDetermined && currentDraftTier === 6) {
                 isFixedFirstToChoose = true;
                 draftOrderDetermined = true;
             }
-            setupPlacementPhase();
+            setupPlacementTurn(true);
         } else {
             sendNetworkData({
                 type: 'SELECT_DRAFT',
-                piece: playerSelectedPiece,
+                piece: chosenTierPiece,
                 timestamp: myDraftChoiceTime
             });
 
@@ -605,30 +613,25 @@
     }
 
     function checkBothDraftSelected() {
-        if (playerSelectedPiece && enemySelectedPiece) {
+        if (chosenTierPiece && enemyChosenTierPiece) {
             clearTurnTimer();
-            // PVP에서 상대방 선택까지 완료된 직후(티어 6 포함) 순서 확정
             if (!draftOrderDetermined && currentDraftTier === 6) {
-                isFixedFirstToChoose = (myDraftChoiceTime <= (enemySelectedPiece.timestamp || myDraftChoiceTime));
+                isFixedFirstToChoose = (myDraftChoiceTime <= (enemyChosenTierPiece.timestamp || myDraftChoiceTime));
                 draftOrderDetermined = true;
             }
-            setupPlacementPhase();
+            // 내가 먼저 고른 사람이면 상대방이 먼저 놓음, 아니면 내가 먼저 놓음
+            setupPlacementTurn(!isFixedFirstToChoose);
         }
     }
 
-    function setupPlacementPhase() {
-        pendingPlacementPiece = playerSelectedPiece;
-        playerSelectedPiece = null;
-
-        // 내가 먼저 고른 사람이면(isFixedFirstToChoose === true) 상대방이 먼저 놓을 때까지 대기
-        // 내가 늦게 고른 사람이면(isFixedFirstToChoose === false) 내가 먼저 배치하므로 하이라이트 표시
-        if (isFixedFirstToChoose) {
-            statusText.innerHTML = `You chose first! Wait for opponent to place their piece...`;
-            highlightDraftZone(false);
+    function setupPlacementTurn(isMyTurnToPlace) {
+        if (isMyTurnToPlace) {
+            statusText.innerHTML = `Deploy your ${chosenTierPiece.emoji} ${chosenTierPiece.name} (${remainingPlacements} left).`;
+            highlightDraftZone(true);
             startTurnTimer(10, handlePlacementTimeout);
         } else {
-            statusText.innerHTML = `You chose later! Deploy ${pendingPlacementPiece.emoji} on board first. (10s)`;
-            highlightDraftZone(true);
+            statusText.innerHTML = `Opponent is placing their piece...`;
+            highlightDraftZone(false);
             startTurnTimer(10, handlePlacementTimeout);
         }
     }
@@ -642,7 +645,6 @@
     function highlightDraftZone(on) {
         document.querySelectorAll('.cell').forEach(cell => {
             const r = parseInt(cell.dataset.row);
-            // 항상 내 진영(맨 아래 2줄: r 6, 7)에만 하이라이트 적용
             if (on && (r === 6 || r === 7)) {
                 cell.classList.add('highlight');
             } else {
@@ -652,25 +654,25 @@
     }
 
     function handleCellClick(row, col) {
-        if (gameState === "DRAFT_LOOP" && pendingPlacementPiece) {
+        if (gameState === "DRAFT_LOOP" && chosenTierPiece) {
+            // 내 진영(r 6, 7)에만 배치 가능
             if (row === 6 || row === 7) {
                 if (boardState[row][col]) return;
 
                 clearTurnTimer();
-                boardState[row][col] = { ...pendingPlacementPiece, side: 'player' };
+                boardState[row][col] = { ...chosenTierPiece, side: 'player' };
                 renderPieces();
                 highlightDraftZone(false);
 
-                const placedPiece = pendingPlacementPiece;
-                pendingPlacementPiece = null;
+                const placedPiece = chosenTierPiece;
+                remainingPlacements--;
 
                 if (gameMode === "PVC") {
                     aiPlaceEnemyPiece();
                     renderPieces();
-                    remainingPlacements--;
 
                     if (remainingPlacements > 0) {
-                        startTierDraft();
+                        setupPlacementTurn(true);
                     } else {
                         if (currentDraftTier > 1) {
                             currentDraftTier--;
@@ -683,8 +685,6 @@
                         }
                     }
                 } else {
-                    remainingPlacements--;
-
                     let totalPiecesOnBoard = 0;
                     for(let r=0; r<8; r++) {
                         for(let c=0; c<8; c++) {
@@ -713,10 +713,15 @@
                         }
                         recordBoardState();
                     } else {
-                        if (remainingPlacements === 0 && currentDraftTier > 1) {
-                            currentDraftTier--;
+                        if (remainingPlacements === 0) {
+                            if (currentDraftTier > 1) {
+                                currentDraftTier--;
+                                startTierDraft();
+                            }
+                        } else {
+                            // 아직 이번 티어 배치가 남았으면 대기 (상대 턴)
+                            setupPlacementTurn(false);
                         }
-                        startTierDraft();
                     }
                 }
             }
@@ -796,7 +801,7 @@
         }
         if (emptySpots.length > 0) {
             const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-            boardState[spot.r][spot.c] = { ...enemySelectedPiece, side: 'enemy' };
+            boardState[spot.r][spot.c] = { ...enemyChosenTierPiece, side: 'enemy' };
         }
     }
 
