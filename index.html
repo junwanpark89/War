@@ -213,7 +213,7 @@
     let peer = null, conn = null;
     let isHost = false;
     let isDisconnectedHandled = false;
-    let isConnected = false; // 상대방과 실제 매칭이 성사되었는지 추적하는 플래그
+    let isConnected = false;
 
     const PIECE_DATABASE = {
         Dragon: {
@@ -247,7 +247,7 @@
     let currentDraftTier = 6; 
     let playerSelectedPiece = null, enemySelectedPiece = null;
     let remainingPlacements = 0;
-    let draftTurn = "host"; // 'host' or 'guest'
+    let draftTurn = "host";
     let turn = "player"; 
 
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
@@ -265,7 +265,7 @@
     function startPVPMode() {
         gameMode = "PVP";
         isDisconnectedHandled = false;
-        isConnected = false; // 접속 대기 초기화
+        isConnected = false;
         const publicRoomId = "ufw_match_public_room_v1";
 
         document.getElementById('main-menu').style.display = 'none';
@@ -275,14 +275,22 @@
         statusText.innerHTML = "🔍 Looking for opponent...";
         buttonZone.innerHTML = "";
 
-        peer = new Peer();
+        // Render PeerJS 백엔드 서버 연결 설정
+        const peerConfig = {
+            host: window.location.hostname,
+            port: window.location.protocol === 'https:' ? 443 : (window.location.port || 80),
+            path: '/peerjs',
+            secure: window.location.protocol === 'https:'
+        };
+
+        peer = new Peer(peerConfig);
 
         peer.on('open', () => {
-            const connAttempt = peer.connect(publicRoomId);
+            const connAttempt = peer.connect(publicRoomId, peerConfig);
             
             const timer = setTimeout(() => {
                 peer.destroy();
-                peer = new Peer(publicRoomId);
+                peer = new Peer(publicRoomId, peerConfig);
                 
                 peer.on('open', () => {
                     isHost = true;
@@ -309,7 +317,6 @@
     }
 
     function handleOpponentDisconnect() {
-        // 상대방과 제대로 매칭이 성공했던 경우에만 끊김 처리 실행
         if (!isConnected || isDisconnectedHandled) return;
         isDisconnectedHandled = true;
         
@@ -319,7 +326,7 @@
     }
 
     function setupConnection() {
-        isConnected = true; // 상대방과 매칭 성공 상태로 설정
+        isConnected = true;
         statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
         buttonZone.innerHTML = `
             <button class="choice-btn" onclick="selectRace('Dragon')">🐉 Dragon</button>
