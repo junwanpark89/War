@@ -594,6 +594,7 @@
                 isFixedFirstToChoose = true;
                 draftOrderDetermined = true;
             }
+            // PVC에서는 기물 고르면 바로 내가 첫 배치 차례이므로 강제로 하이라이트 활성화
             setupPlacementTurn(true);
         } else {
             sendNetworkData({
@@ -645,7 +646,6 @@
     function highlightDraftZone(on) {
         document.querySelectorAll('.cell').forEach(cell => {
             const r = parseInt(cell.dataset.row);
-            // 무조건 맨 아래 2줄(r 6, 7)에만 하이라이트 적용
             if (on && (r === 6 || r === 7)) {
                 cell.classList.add('highlight');
             } else {
