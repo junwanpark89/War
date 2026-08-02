@@ -254,7 +254,10 @@
     let currentTierPlacedCount = 0;  
     let enemyTierPlacedCount = 0;    
 
-    // 엄격한 티어별 배치 수량 매핑 (6부터 1까지 총 16개)
+    // 명확한 티어별 순서 배열 및 수량 정의 (6 -> 5 -> 4 -> 3 -> 2 -> 1)
+    const TIER_ORDER = [6, 5, 4, 3, 2, 1];
+    let tierIndex = 0; // TIER_ORDER의 인덱스로 현재 티어를 제어하여 절대 누락 방지
+
     const TIER_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
 
     let turn = "player"; 
@@ -311,7 +314,8 @@
         playerRace = "";
         enemyRace = "";
         gameState = "CHOOSE_RACE";
-        currentDraftTier = 6;
+        tierIndex = 0;
+        currentDraftTier = TIER_ORDER[tierIndex];
         tierChosenPiece = null;
         enemyTierChosenPiece = null;
         currentTierPlacedCount = 0;
@@ -469,7 +473,8 @@
                 recordBoardState();
             } else {
                 if (data.tierChanged) {
-                    currentDraftTier = data.nextTier;
+                    tierIndex = data.nextTierIndex;
+                    currentDraftTier = TIER_ORDER[tierIndex];
                 }
                 draftTurn = "player";
                 startDraftTurn();
@@ -515,7 +520,8 @@
         if (myRaceSelected && enemyRaceSelected) {
             clearTurnTimer();
             gameState = "DRAFT_LOOP";
-            currentDraftTier = 6;
+            tierIndex = 0;
+            currentDraftTier = TIER_ORDER[tierIndex];
             tierChosenPiece = null;
             currentTierPlacedCount = 0;
             draftTurn = "player";
@@ -546,7 +552,8 @@
             const races = ['Dragon', 'Elf', 'Human'];
             enemyRace = races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
             gameState = "DRAFT_LOOP";
-            currentDraftTier = 6;
+            tierIndex = 0;
+            currentDraftTier = TIER_ORDER[tierIndex];
             tierChosenPiece = null;
             currentTierPlacedCount = 0;
             draftTurn = "player";
@@ -630,20 +637,21 @@
                 let requiredCount = TIER_COUNTS[currentDraftTier];
                 let tierFinished = (currentTierPlacedCount >= requiredCount);
                 let tierChanged = false;
-                let nextTierVal = currentDraftTier;
+                let nextTierIndexVal = tierIndex;
 
                 if (tierFinished) {
                     tierChosenPiece = null;
                     currentTierPlacedCount = 0;
-                    if (currentDraftTier > 1) {
-                        currentDraftTier--; // 6 -> 5 -> 4 -> 3 -> 2 -> 1 순차 하강 보장
+                    if (tierIndex < TIER_ORDER.length - 1) {
+                        tierIndex++; // 정확한 인덱스 증가로 6 -> 5 -> 4 -> 3 -> 2 -> 1 보장
+                        currentDraftTier = TIER_ORDER[tierIndex];
                         tierChanged = true;
-                        nextTierVal = currentDraftTier;
+                        nextTierIndexVal = tierIndex;
                     }
                 }
 
                 let playerTotalPlaced = countPlayerPieces();
-                let finishedAll = (currentDraftTier === 1 && tierFinished && playerTotalPlaced >= 16);
+                let finishedAll = (tierIndex === TIER_ORDER.length - 1 && tierFinished && playerTotalPlaced >= 16);
 
                 if (gameMode === "PVC") {
                     if (finishedAll) {
@@ -665,7 +673,7 @@
                         piece: placedPiece,
                         tierFinished: tierFinished,
                         tierChanged: tierChanged,
-                        nextTier: nextTierVal,
+                        nextTierIndex: nextTierIndexVal,
                         finishedAll: finishedAll
                     });
 
@@ -771,6 +779,8 @@
         aiTierPlacedCount = 0;
     }
 
+    let aiTierIndex = 0;
+
     function aiPerformDraftTurn(playerTierFinished) {
         if (!aiTierChosenPiece) {
             aiChooseTierPiece();
@@ -796,14 +806,14 @@
         if (aiTierFinished) {
             aiTierChosenPiece = null;
             aiTierPlacedCount = 0;
-            // AI 측에서도 티어가 끝나면 다음 티어로 순차 감소
-            if (currentDraftTier > 1) {
-                currentDraftTier--;
+            // AI 티어 인덱스 동기화
+            if (aiTierIndex < TIER_ORDER.length - 1) {
+                aiTierIndex++;
             }
         }
 
         let enemyTotalPlaced = countEnemyPieces();
-        let finishedAll = (currentDraftTier === 1 && aiTierFinished && enemyTotalPlaced >= 16);
+        let finishedAll = (tierIndex === TIER_ORDER.length - 1 && aiTierFinished && enemyTotalPlaced >= 16);
 
         if (finishedAll) {
             gameState = "GAMEPLAY";
