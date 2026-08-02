@@ -295,6 +295,13 @@
             requestMatchmaking(myPeerId);
         });
 
+        // 게스트가 접속해올 때의 연결 수신 대기 (Host 역할)
+        peer.on('connection', (c) => {
+            conn = c;
+            isHost = true;
+            setupConnection();
+        });
+
         peer.on('error', (err) => {
             console.error(err);
             handleOpponentDisconnect();
@@ -313,10 +320,7 @@
                     if (data.isHost) {
                         isHost = true;
                         statusText.innerHTML = "⌛ Opponent found! Waiting for connection...";
-                        peer.on('connection', (c) => {
-                            conn = c;
-                            setupConnection();
-                        });
+                        // peer.on('connection')에서 연결을 받도록 대기
                     } else {
                         isHost = false;
                         statusText.innerHTML = "⚔️ Opponent found! Connecting...";
@@ -350,7 +354,6 @@
         if (pollTimer) clearInterval(pollTimer);
         isConnected = true;
         
-        // 연결 직후 데이터 수신기 철저히 등록
         conn.on('data', (data) => {
             handleNetworkData(data);
         });
@@ -381,7 +384,6 @@
             enemyRace = data.race;
             enemyRaceSelected = true;
             
-            // 상대가 골랐는데 내가 아직 안 골랐다면 상태만 갱신
             if (!myRaceSelected) {
                 statusText.innerHTML = `Opponent selected <b>${data.race}</b>. Please choose your faction!`;
             }
