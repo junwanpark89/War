@@ -132,20 +132,20 @@
 
     const PIECE_DATABASE = {
         Dragon: {
-            6: [{name:"Fire Spirit", emoji:"💥"}, {name:"Magma Slime", emoji:"🍮"}, {name:"Baby Wyvern", emoji:"🦅"}],
-            5: [{name:"Whelp", emoji:"🦎"}, {name:"Imp Fighter", emoji:"😈"}, {name:"Gargoyle Scout", emoji:"🦇"}],
-            4: [{name:"Lava Chariot", emoji:"🚗"}, {name:"Venom Scorpion", emoji:"🦂"}, {name:"Flame Viper", emoji:"🐍"}],
+            6: [{name:"Fire Spirit", emoji:"🌟"}, {name:"Magma Slime", emoji:"🍮"}, {name:"Baby Wyvern", emoji:"🐲"}],
+            5: [{name:"Whelp", emoji:"🦖"}, {name:"Imp Fighter", emoji:"😈"}, {name:"Gargoyle Scout", emoji:"🦇"}],
+            4: [{name:"Lava Chariot", emoji:"🚗"}, {name:"Venom Scorpion", emoji:"🦂"}, {name:"Flame Viper", emoji:"🌶️"}],
             3: [{name:"Magma Giant", emoji:"☄️"}, {name:"Mecha Dragon", emoji:"🤖"}, {name:"Acid Wyvern", emoji:"🧪"}],
-            2: [{name:"Flame Lord", emoji:"🔥"}, {name:"Storm Drake", emoji:"⚡"}, {name:"Gargoyle Elder", emoji:"🌪️"}],
-            1: [{name:"Ruination Dragon", emoji:"🌋"}, {name:"Ancient Drake", emoji:"🐉"}, {name:"Abyss Dragon", emoji:"🌌"}]
+            2: [{name:"Flame Lord", emoji:"👹"}, {name:"Storm Drake", emoji:"🌩️"}, {name:"Gargoyle Elder", emoji:"🌪️"}],
+            1: [{name:"Ruination Dragon", emoji:"🌋"}, {name:"Ancient Drake", emoji:"🦕"}, {name:"Abyss Dragon", emoji:"🌌"}]
         },
         Elf: {
-            6: [{name:"Spirit Butterfly", emoji:"🦋"}, {name:"Elf Militia", emoji:"🧝‍♂️"}, {name:"Pixie", emoji:"✨"}],
+            6: [{name:"Spirit Butterfly", emoji:"🦋"}, {name:"Elf Militia", emoji:"🤺"}, {name:"Pixie", emoji:"✨"}],
             5: [{name:"Druid", emoji:"🌿"}, {name:"Elf Swordsman", emoji:"⚔️"}, {name:"Treant", emoji:"🪵"}],
             4: [{name:"Leopard Tamer", emoji:"🐆"}, {name:"Owl Scout", emoji:"🦉"}, {name:"Fairy Rogue", emoji:"🥷"}],
             3: [{name:"Wind Dancer", emoji:"🍃"}, {name:"Illusionist", emoji:"🔮"}, {name:"Centaur Archer", emoji:"🏇"}],
-            2: [{name:"Moonbow Archer", emoji:"🏹"}, {name:"Gryphon Knight", emoji:"🦅"}, {name:"Unicorn Guardian", emoji:"🦄"}],
-            1: [{name:"Elf Queen", emoji:"🧝‍♀️"}, {name:"Worldtree Keeper", emoji:"🌳"}, {name:"Elemental King", emoji:"🌊"}]
+            2: [{name:"Moonbow Archer", emoji:"🌙"}, {name:"Gryphon Knight", emoji:"🦁"}, {name:"Unicorn Guardian", emoji:"🦄"}],
+            1: [{name:"Elf Queen", emoji:"👑"}, {name:"Worldtree Keeper", emoji:"🌳"}, {name:"Elemental King", emoji:"🌊"}]
         },
         Human: {
             6: [{name:"Footman", emoji:"💂"}, {name:"Peasant", emoji:"🧑‍🌾"}, {name:"Recruit", emoji:"🎖️"}],
@@ -224,7 +224,6 @@
             return;
         }
 
-        // Base64 encoding allows Korean, emojis, and any characters in Room Code
         const roomCode = btoa(unescape(encodeURIComponent(rawRoomCode)));
 
         gameMode = "PVP";
@@ -506,8 +505,7 @@
             boardState[fromR][fromC] = null;
             renderPieces();
 
-            if (checkRepetitionRule('enemy')) return;
-            if (checkGameOver()) return;
+            if (checkRepetitionRule('enemy') || checkGameOver()) return;
 
             turn = "player";
             if (myRole !== 'spectator') {
