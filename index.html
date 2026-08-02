@@ -258,7 +258,7 @@
             statusText.innerHTML = `⏳ <b>Waiting for friend...</b> (Room: ${roomCode})`;
         });
 
-        // 방장 입장에서 누군가 들어왔을 때 처리 (2번째면 Guest, 3번째부터는 Spectator)
+        // 방장 측: 누군가 들어왔을 때 데이터 채널이 완전히 열린 후 역할 부여 전송
         peer.on('connection', (c) => {
             if (isHost) {
                 let assignedRole = '';
@@ -272,8 +272,7 @@
                     setupHostConnection(c, 'spectator');
                 }
 
-                // 접속한 사람에게 역할(Guest 또는 Spectator) 부여 메시지 전송
-                setTimeout(() => {
+                const sendRoleAssignment = () => {
                     if (c && c.open) {
                         c.send({
                             type: 'ASSIGN_ROLE',
@@ -285,13 +284,18 @@
                             turn: turn
                         });
                     }
-                }, 200);
+                };
+
+                if (c.open) {
+                    sendRoleAssignment();
+                } else {
+                    c.on('open', sendRoleAssignment);
+                }
             }
         });
 
         peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
-                // 이미 방이 있다면 게스트 또는 관전자로 접속 시도
                 peer.destroy();
                 statusText.innerHTML = `⚔️ Room found! Connecting...`;
 
@@ -420,13 +424,11 @@
 
     function setupHostConnection(connection, role) {
         isConnected = true;
-        connection.on('open', () => {
-            if (role === 'guest') {
-                statusText.innerHTML = "🎮 Friend Joined! Choose your faction within 5s:";
-                showFactionButtons();
-                startTurnTimer(5, handleRaceSelectionTimeout);
-            }
-        });
+        if (role === 'guest') {
+            statusText.innerHTML = "🎮 Friend Joined! Choose your faction within 5s:";
+            showFactionButtons();
+            startTurnTimer(5, handleRaceSelectionTimeout);
+        }
 
         connection.on('data', (data) => {
             if (role === 'guest') {
