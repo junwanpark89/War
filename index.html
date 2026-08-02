@@ -443,7 +443,7 @@
                 turn = isHost ? "player" : "enemy";
                 if (turn === "player") {
                     statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
-                    startTurnTimer(60, handleTimeOut);
+                    startTurnTimer(30, handleTimeOut);
                 } else {
                     statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
                 }
@@ -467,7 +467,7 @@
 
             turn = "player";
             statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
-            startTurnTimer(60, handleTimeOut);
+            startTurnTimer(30, handleTimeOut);
         }
     }
 
@@ -572,7 +572,7 @@
         if (isMyTurn) {
             statusText.innerHTML = `Deploy ${playerSelectedPiece.emoji} on bottom 2 rows. (Your Turn - Remaining: ${remainingPlacements})`;
             highlightDraftZone(true);
-            startTurnTimer(10, handleTimeOut);
+            startTurnTimer(30, handleTimeOut);
         } else {
             clearTurnTimer();
             statusText.innerHTML = `Waiting for opponent to deploy a piece... (Remaining: ${remainingPlacements})`;
@@ -652,7 +652,7 @@
                         highlightDraftZone(false);
                         if (turn === "player") {
                             statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
-                            startTurnTimer(60, handleTimeOut);
+                            startTurnTimer(30, handleTimeOut);
                         } else {
                             statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
                         }
