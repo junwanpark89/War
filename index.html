@@ -254,6 +254,7 @@
     let currentTierPlacedCount = 0;  
     let enemyTierPlacedCount = 0;    
 
+    // 정확한 티어별 개수: 6(8개), 5(2개), 4(2개), 3(2개), 2(1개), 1(1개)
     const TIER_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
 
     let turn = "player"; 
@@ -641,7 +642,6 @@
                     }
                 }
 
-                // 정확히 티어 1까지 전부 끝나고, 플레이어가 총 16개의 피스를 모두 배치했을 때만 완료되도록 수정
                 let playerTotalPlaced = countPlayerPieces();
                 let finishedAll = (currentDraftTier === 1 && tierFinished && playerTotalPlaced >= 16);
 
