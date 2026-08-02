@@ -263,58 +263,68 @@
     }
 
     function startPVPMode() {
-        gameMode = "PVP";
-        isDisconnectedHandled = false;
-        isConnected = false;
-        const publicRoomId = "ufw_match_public_room_v1";
+    gameMode = "PVP";
+    isDisconnectedHandled = false;
+    isConnected = false;
 
-        document.getElementById('main-menu').style.display = 'none';
-        document.getElementById('game-wrapper').style.display = 'block';
-        createBoard();
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('game-wrapper').style.display = 'block';
+    createBoard();
 
-        statusText.innerHTML = "🔍 Looking for opponent...";
-        buttonZone.innerHTML = "";
+    statusText.innerHTML = "🔍 접속 중...";
+    buttonZone.innerHTML = "";
 
-        // Render 서버 주소 직접 지정을 통해 올바른 WebSockets 백엔드로 접속
-        const peerConfig = {
-            host: 'cosmageddon-server.onrender.com',
-            port: 443,
-            path: '/peerjs',
-            secure: true
-        };
+    const peerConfig = {
+        host: 'cosmageddon-server.onrender.com',
+        port: 443,
+        path: '/peerjs',
+        secure: true
+    };
 
-        peer = new Peer(peerConfig);
+    // 고정 ID 대신 랜덤 Peer ID 생성
+    peer = new Peer(peerConfig);
 
-        peer.on('open', () => {
-            const connAttempt = peer.connect(publicRoomId, peerConfig);
-            
-            const timer = setTimeout(() => {
-                peer.destroy();
-                peer = new Peer(publicRoomId, peerConfig);
-                
-                peer.on('open', () => {
-                    isHost = true;
-                    statusText.innerHTML = "⌛ Waiting for an opponent to join...";
-                });
+    peer.on('open', (myPeerId) => {
+        statusText.innerHTML = "🔍 상대를 찾는 중...";
+        
+        // Render 백엔드에 대기열 매칭 요청
+        fetch('https://cosmageddon-server.onrender.com/api/matchmaking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ peerId: myPeerId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.role === 'host') {
+                // 내가 먼저 도착함 -> 상대방이 들어올 때까지 대기
+                isHost = true;
+                statusText.innerHTML = "⌛ 다른 플레이어를 기다리는 중...";
 
                 peer.on('connection', (c) => {
                     conn = c;
                     setupConnection();
                 });
-            }, 1500);
 
-            connAttempt.on('open', () => {
-                clearTimeout(timer);
-                conn = connAttempt;
+            } else if (data.role === 'guest') {
+                // 먼저 기다리던 플레이어(Host)를 발견함 -> P2P 연결 시도!
                 isHost = false;
-                setupConnection();
-            });
+                conn = peer.connect(data.hostId, peerConfig);
+                
+                conn.on('open', () => {
+                    setupConnection();
+                });
+            }
+        })
+        .catch(err => {
+            console.error("Matchmaking error:", err);
+            statusText.innerHTML = "❌ 매칭 서버 연결 실패";
         });
+    });
 
-        peer.on('error', (err) => {
-            handleOpponentDisconnect();
-        });
-    }
+    peer.on('error', (err) => {
+        handleOpponentDisconnect();
+    });
+}
 
     function handleOpponentDisconnect() {
         if (!isConnected || isDisconnectedHandled) return;
