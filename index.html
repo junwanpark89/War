@@ -468,7 +468,8 @@
                         startTierDraft();
                     }
                 } else {
-                    setupPlacementTurn(true);
+                    // 번갈아 놓기: 내가 방금 놓았으니 상대 턴(false)
+                    setupPlacementTurn(false);
                 }
             }
         } else if (data.type === 'MOVE') {
@@ -591,11 +592,11 @@
             enemyChosenTierPiece = { ...enemyChoices[Math.floor(Math.random() * enemyChoices.length)], tier: currentDraftTier };
             
             if (!draftOrderDetermined && currentDraftTier === 6) {
-                isFixedFirstToChoose = true;
+                isFixedFirstToChoose = true; // 내가 먼저 골랐음
                 draftOrderDetermined = true;
             }
-            // PVC에서는 기물 고르면 바로 내가 첫 배치 차례이므로 강제로 하이라이트 활성화
-            setupPlacementTurn(true);
+            // 규칙: 먼저 고른 사람이 나중에 놓는다 (!isFixedFirstToChoose 가 내 배치 순서)
+            setupPlacementTurn(!isFixedFirstToChoose);
         } else {
             sendNetworkData({
                 type: 'SELECT_DRAFT',
@@ -619,8 +620,8 @@
                 isFixedFirstToChoose = (myDraftChoiceTime <= (enemyChosenTierPiece.timestamp || myDraftChoiceTime));
                 draftOrderDetermined = true;
             }
-            // 내가 먼저 고른 사람이면(isFixedFirstToChoose === true) 상대방이 먼저 놓으므로 나는 대기(false)
-            // 내가 늦게 고른 사람이면(isFixedFirstToChoose === false) 내가 먼저 놓으므로 내 턴(true)
+            // 규칙: 먼저 고른 사람(isFixedFirstToChoose === true)은 나중에 놓으므로 false,
+            // 나중에 고른 사람(isFixedFirstToChoose === false)은 먼저 놓으므로 true
             setupPlacementTurn(!isFixedFirstToChoose);
         }
     }
@@ -668,12 +669,15 @@
                 remainingPlacements--;
 
                 if (gameMode === "PVC") {
-                    aiPlaceEnemyPiece();
-                    renderPieces();
-
                     if (remainingPlacements > 0) {
-                        setupPlacementTurn(true);
+                        // PVC에서도 남은 배치 턴 번갈아가기
+                        aiPlaceEnemyPiece();
+                        renderPieces();
+                        setupPlacementTurn(!isFixedFirstToChoose);
                     } else {
+                        aiPlaceEnemyPiece();
+                        renderPieces();
+
                         if (currentDraftTier > 1) {
                             currentDraftTier--;
                             startTierDraft();
@@ -719,6 +723,7 @@
                                 startTierDraft();
                             }
                         } else {
+                            // 내가 놨으니 상대방 턴
                             setupPlacementTurn(false);
                         }
                     }
