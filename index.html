@@ -248,8 +248,8 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     let currentDraftTier = 6; 
-    let chosenTierPiece = null; // 현재 티어에서 선택한 고정 기물
-    let enemyChosenTierPiece = null; // 상대방이 현재 티어에서 선택한 고정 기물
+    let chosenTierPiece = null; 
+    let enemyChosenTierPiece = null; 
     let remainingPlacements = 0;
     let turn = "player"; 
 
@@ -468,7 +468,6 @@
                         startTierDraft();
                     }
                 } else {
-                    // 남은 배치 횟수가 있다면 내가 놓을 차례
                     setupPlacementTurn(true);
                 }
             }
@@ -619,7 +618,8 @@
                 isFixedFirstToChoose = (myDraftChoiceTime <= (enemyChosenTierPiece.timestamp || myDraftChoiceTime));
                 draftOrderDetermined = true;
             }
-            // 내가 먼저 고른 사람이면 상대방이 먼저 놓음, 아니면 내가 먼저 놓음
+            // 내가 먼저 고른 사람이면(isFixedFirstToChoose === true) 상대방이 먼저 놓으므로 나는 대기(false)
+            // 내가 늦게 고른 사람이면(isFixedFirstToChoose === false) 내가 먼저 놓으므로 내 턴(true)
             setupPlacementTurn(!isFixedFirstToChoose);
         }
     }
@@ -645,6 +645,7 @@
     function highlightDraftZone(on) {
         document.querySelectorAll('.cell').forEach(cell => {
             const r = parseInt(cell.dataset.row);
+            // 무조건 맨 아래 2줄(r 6, 7)에만 하이라이트 적용
             if (on && (r === 6 || r === 7)) {
                 cell.classList.add('highlight');
             } else {
@@ -655,7 +656,6 @@
 
     function handleCellClick(row, col) {
         if (gameState === "DRAFT_LOOP" && chosenTierPiece) {
-            // 내 진영(r 6, 7)에만 배치 가능
             if (row === 6 || row === 7) {
                 if (boardState[row][col]) return;
 
@@ -719,7 +719,6 @@
                                 startTierDraft();
                             }
                         } else {
-                            // 아직 이번 티어 배치가 남았으면 대기 (상대 턴)
                             setupPlacementTurn(false);
                         }
                     }
