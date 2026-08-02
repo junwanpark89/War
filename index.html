@@ -250,9 +250,12 @@
     let playerRace = "", enemyRace = "";
     let currentDraftTier = 6; 
     let chosenTierPiece = null; 
-    let enemyChosenTierPiece = null; 
     let turn = "player"; 
     let draftTurn = "player";
+
+    // Tier configuration mapping (Tier 6: 8, Tier 5: 2, Tier 4: 2, Tier 3: 2, Tier 2: 1, Tier 1: 1)
+    const TIER_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
+    let currentTierPlacedCount = 0;
 
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
     let selectedCell = null; 
@@ -306,6 +309,7 @@
         enemyRace = "";
         gameState = "CHOOSE_RACE";
         currentDraftTier = 6;
+        currentTierPlacedCount = 0;
         clearTurnTimer();
 
         if (pollTimer) clearInterval(pollTimer);
@@ -430,16 +434,11 @@
         } else if (data.type === 'BOTH_TIMEOUT') {
             clearTurnTimer();
             endGame("Both players failed to choose. Defeat!");
-        } else if (data.type === 'SELECT_TIER_PIECE') {
-            enemyChosenTierPiece = { ...data.piece, tier: currentDraftTier };
-            statusText.innerHTML = `[Tier ${currentDraftTier}] Opponent chose ${enemyChosenTierPiece.emoji} ${enemyChosenTierPiece.name}. Placing pieces...`;
-        } else if (data.type === 'PLACE_TIER_PIECES') {
+        } else if (data.type === 'PLACE_DRAFT_TURN') {
             clearTurnTimer();
-            data.placements.forEach(p => {
-                const mirrorR = 7 - p.r;
-                const mirrorC = 7 - p.c;
-                boardState[mirrorR][mirrorC] = { ...p.piece, side: 'enemy' };
-            });
+            const mirrorR = 7 - data.r;
+            const mirrorC = 7 - data.c;
+            boardState[mirrorR][mirrorC] = { ...data.piece, side: 'enemy' };
             renderPieces();
 
             if (data.finishedAll) {
@@ -453,9 +452,11 @@
                 }
                 recordBoardState();
             } else {
-                currentDraftTier--;
+                if (data.tierChanged) {
+                    currentDraftTier = data.nextTier;
+                }
                 draftTurn = "player";
-                startTierDraft();
+                startSingleDraftTurn();
             }
         } else if (data.type === 'MOVE') {
             clearTurnTimer();
@@ -499,8 +500,9 @@
             clearTurnTimer();
             gameState = "DRAFT_LOOP";
             currentDraftTier = 6;
+            currentTierPlacedCount = 0;
             draftTurn = "player";
-            startTierDraft();
+            startSingleDraftTurn();
         }
     }
 
@@ -528,8 +530,9 @@
             enemyRace = races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
             gameState = "DRAFT_LOOP";
             currentDraftTier = 6;
+            currentTierPlacedCount = 0;
             draftTurn = "player";
-            startTierDraft();
+            startSingleDraftTurn();
         } else {
             sendNetworkData({ type: 'SELECT_RACE', race: race });
             statusText.innerHTML = `Selected <b>${race}</b>. Waiting for opponent to select...`;
@@ -538,15 +541,12 @@
         }
     }
 
-    let currentTierPlacements = [];
-
-    function startTierDraft() {
+    function startSingleDraftTurn() {
         chosenTierPiece = null;
-        currentTierPlacements = [];
         
         if (draftTurn === "player") {
-            let countToPlace = (currentDraftTier === 6 || currentDraftTier === 5) ? 8 : (currentDraftTier === 4 || currentDraftTier === 3) ? 6 : 2;
-            statusText.innerHTML = `[Tier ${currentDraftTier}] Choose 1 piece type to place all ${countToPlace} units for this tier.`;
+            let requiredCount = TIER_COUNTS[currentDraftTier];
+            statusText.innerHTML = `[Tier ${currentDraftTier}] Choose 1 piece (${currentTierPlacedCount + 1}/${requiredCount}) to place.`;
             buttonZone.innerHTML = "";
             highlightDraftZone(false);
 
@@ -554,31 +554,23 @@
                 const btn = document.createElement('button');
                 btn.className = "choice-btn";
                 btn.innerHTML = `${piece.emoji} ${piece.name}`;
-                btn.onclick = () => chooseTierPiece(piece);
+                btn.onclick = () => chooseDraftPiece(piece);
                 buttonZone.appendChild(btn);
             });
         } else {
-            statusText.innerHTML = `[Tier ${currentDraftTier}] Waiting for opponent to draft tier ${currentDraftTier}...`;
+            statusText.innerHTML = `[Tier ${currentDraftTier}] Waiting for opponent's draft turn...`;
             buttonZone.innerHTML = "";
             highlightDraftZone(false);
         }
     }
 
-    function chooseTierPiece(piece) {
+    function chooseDraftPiece(piece) {
         if (draftTurn !== "player" || chosenTierPiece) return;
         chosenTierPiece = { ...piece, tier: currentDraftTier };
         buttonZone.innerHTML = "";
 
-        let countToPlace = (currentDraftTier === 6 || currentDraftTier === 5) ? 8 : (currentDraftTier === 4 || currentDraftTier === 3) ? 6 : 2;
-        statusText.innerHTML = `[Tier ${currentDraftTier}] Place ${chosenTierPiece.emoji} ${chosenTierPiece.name} (${currentTierPlacements.length}/${countToPlace}) on your zone (Rows 6-7).`;
+        statusText.innerHTML = `Place ${chosenTierPiece.emoji} ${chosenTierPiece.name} on your zone (Rows 6-7).`;
         highlightDraftZone(true);
-
-        if (gameMode === "PVP") {
-            sendNetworkData({
-                type: 'SELECT_TIER_PIECE',
-                piece: chosenTierPiece
-            });
-        }
     }
 
     function highlightDraftZone(on) {
@@ -599,41 +591,61 @@
             if (row === 6 || row === 7) {
                 if (boardState[row][col]) return; 
 
-                boardState[row][col] = { ...chosenTierPiece, side: 'player' };
-                currentTierPlacements.push({ r: row, c: col, piece: chosenTierPiece });
+                const placedPiece = chosenTierPiece;
+                boardState[row][col] = { ...placedPiece, side: 'player' };
                 renderPieces();
+                highlightDraftZone(false);
+                chosenTierPiece = null;
+                currentTierPlacedCount++;
 
-                let countToPlace = (currentDraftTier === 6 || currentDraftTier === 5) ? 8 : (currentDraftTier === 4 || currentDraftTier === 3) ? 6 : 2;
+                let requiredCount = TIER_COUNTS[currentDraftTier];
+                let tierChanged = false;
+                let nextTierVal = currentDraftTier;
 
-                if (currentTierPlacements.length < countToPlace) {
-                    statusText.innerHTML = `[Tier ${currentDraftTier}] Place ${chosenTierPiece.emoji} ${chosenTierPiece.name} (${currentTierPlacements.length}/${countToPlace}).`;
-                } else {
-                    highlightDraftZone(false);
-                    let finishedAll = (currentDraftTier === 1);
+                if (currentTierPlacedCount >= requiredCount) {
+                    currentTierPlacedCount = 0;
+                    if (currentDraftTier > 1) {
+                        currentDraftTier--;
+                        tierChanged = true;
+                        nextTierVal = currentDraftTier;
+                    }
+                }
 
-                    if (gameMode === "PVC") {
-                        aiPerformTierDraft();
+                let finishedAll = (currentDraftTier === 1 && currentTierPlacedCount === 0);
+
+                if (gameMode === "PVC") {
+                    if (finishedAll) {
+                        gameState = "GAMEPLAY";
+                        turn = "player";
+                        statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
+                        recordBoardState();
                     } else {
-                        sendNetworkData({
-                            type: 'PLACE_TIER_PIECES',
-                            placements: currentTierPlacements,
-                            finishedAll: finishedAll
-                        });
+                        aiPerformDraftTurn();
+                    }
+                } else {
+                    sendNetworkData({
+                        type: 'PLACE_DRAFT_TURN',
+                        r: row,
+                        c: col,
+                        piece: placedPiece,
+                        tierChanged: tierChanged,
+                        nextTier: nextTierVal,
+                        finishedAll: finishedAll
+                    });
 
-                        if (finishedAll) {
-                            gameState = "GAMEPLAY";
-                            turn = isHost ? "player" : "enemy";
-                            if (turn === "player") {
-                                statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
-                                startTurnTimer(30, handleTimeOut);
-                            } else {
-                                statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
-                            }
-                            recordBoardState();
+                    if (finishedAll) {
+                        gameState = "GAMEPLAY";
+                        turn = isHost ? "player" : "enemy";
+                        if (turn === "player") {
+                            statusText.innerHTML = "⚔️ Battle Start! (Your Turn) Click your piece to move.";
+                            startTurnTimer(30, handleTimeOut);
                         } else {
-                            draftTurn = "enemy";
-                            statusText.innerHTML = `[Tier ${currentDraftTier}] Waiting for opponent to finish tier ${currentDraftTier}...`;
+                            statusText.innerHTML = "⚔️ Battle Start! Waiting for opponent's move...";
                         }
+                        recordBoardState();
+                    } else {
+                        draftTurn = "enemy";
+                        statusText.innerHTML = `[Tier ${currentDraftTier}] Waiting for opponent's draft turn...`;
                     }
                 }
             }
@@ -704,10 +716,11 @@
         }
     }
 
-    function aiPerformTierDraft() {
+    let aiTierPlacedCount = 0;
+
+    function aiPerformDraftTurn() {
         const enemyChoices = PIECE_DATABASE[enemyRace][currentDraftTier];
         const aiPiece = enemyChoices[Math.floor(Math.random() * enemyChoices.length)];
-        let countToPlace = (currentDraftTier === 6 || currentDraftTier === 5) ? 8 : (currentDraftTier === 4 || currentDraftTier === 3) ? 6 : 2;
 
         let emptySpots = [];
         for (let r = 0; r <= 1; r++) {
@@ -716,25 +729,42 @@
             }
         }
 
-        // Shuffle empty spots to randomly place
-        emptySpots.sort(() => Math.random() - 0.5);
-
-        for (let i = 0; i < countToPlace && emptySpots.length > 0; i++) {
-            const spot = emptySpots.pop();
+        if (emptySpots.length > 0) {
+            const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
             boardState[spot.r][spot.c] = { ...aiPiece, tier: currentDraftTier, side: 'enemy' };
         }
         renderPieces();
 
-        if (currentDraftTier === 1) {
+        aiTierPlacedCount++;
+        let requiredCount = TIER_COUNTS[currentDraftTier];
+
+        if (aiTierPlacedCount >= requiredCount) {
+            aiTierPlacedCount = 0;
+            if (currentDraftTier > 1) {
+                currentDraftTier--;
+            }
+        }
+
+        let finishedAll = (currentDraftTier === 1 && aiTierPlacedCount === 0 && !checkAnyEmptyEnemySpot());
+
+        if (finishedAll || (currentDraftTier === 1 && aiTierPlacedCount >= TIER_COUNTS[1])) {
             gameState = "GAMEPLAY";
             turn = "player";
             statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
             recordBoardState();
         } else {
-            currentDraftTier--;
             draftTurn = "player";
-            startTierDraft();
+            startSingleDraftTurn();
         }
+    }
+
+    function checkAnyEmptyEnemySpot() {
+        for (let r = 0; r <= 1; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (!boardState[r][c]) return true;
+            }
+        }
+        return false;
     }
 
     function clearHighlights() {
