@@ -215,6 +215,10 @@
     let isDisconnectedHandled = false;
     let isConnected = false;
     let pollTimer = null;
+    
+    // 종족 선택 동기화 상태 변수
+    let myRaceSelected = false;
+    let enemyRaceSelected = false;
 
     const PIECE_DATABASE = {
         Dragon: {
@@ -263,11 +267,14 @@
         createBoard();
     }
 
-    // === 핵심 수정 부분: PVP 매칭 시스템 ===
     function startPVPMode() {
         gameMode = "PVP";
         isDisconnectedHandled = false;
         isConnected = false;
+        myRaceSelected = false;
+        enemyRaceSelected = false;
+        playerRace = "";
+        enemyRace = "";
 
         if (pollTimer) clearInterval(pollTimer);
 
@@ -285,7 +292,6 @@
             secure: true
         };
 
-        // 내 고유 ID로 Peer 서버 접속
         peer = new Peer(peerConfig);
 
         peer.on('open', (myPeerId) => {
@@ -299,7 +305,6 @@
         });
     }
 
-    // 서버에 대기열 매칭 요청 (폴링 방식)
     function requestMatchmaking(myPeerId) {
         const serverUrl = `https://cosmageddon-server.onrender.com/match?id=${myPeerId}`;
 
@@ -325,7 +330,6 @@
                         });
                     }
                 } else {
-                    // 대기 중이면 1초마다 다시 체크
                     if (!pollTimer) {
                         pollTimer = setInterval(() => requestMatchmaking(myPeerId), 1000);
                     }
@@ -378,7 +382,8 @@
     function handleNetworkData(data) {
         if (data.type === 'SELECT_RACE') {
             enemyRace = data.race;
-            checkPvpRaceSelected();
+            enemyRaceSelected = true;
+            checkBothRacesSelected();
         } else if (data.type === 'PLACE_PIECE') {
             const mirrorR = 7 - data.r;
             const mirrorC = 7 - data.c;
@@ -417,10 +422,8 @@
         }
     }
 
-    let pvpEnemyRaceSelected = false;
-    function checkPvpRaceSelected() {
-        pvpEnemyRaceSelected = true;
-        if (playerRace && pvpEnemyRaceSelected) {
+    function checkBothRacesSelected() {
+        if (myRaceSelected && enemyRaceSelected) {
             gameState = "DRAFT_LOOP";
             draftTurn = "host";
             startTierDraft();
@@ -442,6 +445,8 @@
 
     function selectRace(race) {
         playerRace = race;
+        myRaceSelected = true;
+
         if (gameMode === "PVC") {
             const races = ['Dragon', 'Elf', 'Human'];
             enemyRace = races.filter(r => r !== race)[Math.floor(Math.random() * 2)];
@@ -449,13 +454,9 @@
             startTierDraft();
         } else {
             sendNetworkData({ type: 'SELECT_RACE', race: race });
-            statusText.innerHTML = `Selected <b>${race}</b>. Waiting for opponent...`;
+            statusText.innerHTML = `Selected <b>${race}</b>. Waiting for opponent to select...`;
             buttonZone.innerHTML = "";
-            if (pvpEnemyRaceSelected) {
-                gameState = "DRAFT_LOOP";
-                draftTurn = "host";
-                startTierDraft();
-            }
+            checkBothRacesSelected();
         }
     }
 
