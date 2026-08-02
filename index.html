@@ -268,7 +268,7 @@
 
     function startTurnTimer(seconds, onTimeout) {
         clearTurnTimer();
-        if (gameMode !== "PVP") return; // PVC는 타이머 제외
+        if (gameMode !== "PVP") return;
         
         timeLeft = seconds;
         updateTimerDisplay();
@@ -397,7 +397,7 @@
 
         statusText.innerHTML = "🎮 Opponent Joined! Choose your faction:";
         showFactionButtons();
-        startTurnTimer(10, handleTimeOut); // 팩션 선택 10초 타이머 시작
+        startTurnTimer(10, handleRaceSelectionTimeout);
     }
 
     function showFactionButtons() {
@@ -426,6 +426,9 @@
         } else if (data.type === 'TIMEOUT_LOSE') {
             clearTurnTimer();
             endGame("Victory is yours! (Opponent ran out of time)");
+        } else if (data.type === 'BOTH_TIMEOUT') {
+            clearTurnTimer();
+            endGame("Both players failed to choose. Defeat!");
         } else if (data.type === 'PLACE_PIECE') {
             clearTurnTimer();
             const mirrorR = 7 - data.r;
@@ -465,6 +468,17 @@
             turn = "player";
             statusText.innerHTML = "⚔️ Your Turn! Select a piece to move.";
             startTurnTimer(60, handleTimeOut);
+        }
+    }
+
+    function handleRaceSelectionTimeout() {
+        clearTurnTimer();
+        if (!myRaceSelected && !enemyRaceSelected) {
+            sendNetworkData({ type: 'BOTH_TIMEOUT' });
+            endGame("Both players failed to choose. Defeat!");
+        } else if (!myRaceSelected) {
+            sendNetworkData({ type: 'TIMEOUT_LOSE' });
+            endGame("Defeat! (Time out)");
         }
     }
 
