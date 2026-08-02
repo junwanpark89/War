@@ -249,15 +249,15 @@
     let gameState = "CHOOSE_RACE"; 
     let playerRace = "", enemyRace = "";
     let currentDraftTier = 6; 
-    let tierChosenPiece = null;      // 현재 티어에서 고른 단일 피스 종류
-    let enemyTierChosenPiece = null; // 상대방이 현재 티어에서 고른 단일 피스 종류
-    let currentTierPlacedCount = 0;  // 내가 현재 티어에서 배치한 개수
-    let enemyTierPlacedCount = 0;    // 상대가 현재 티어에서 배치한 개수
+    let tierChosenPiece = null;      
+    let enemyTierChosenPiece = null; 
+    let currentTierPlacedCount = 0;  
+    let enemyTierPlacedCount = 0;    
 
     const TIER_COUNTS = { 6: 8, 5: 2, 4: 2, 3: 2, 2: 1, 1: 1 };
 
     let turn = "player"; 
-    let draftTurn = "player"; // 'player' 또는 'enemy'
+    let draftTurn = "player"; 
 
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
     let selectedCell = null; 
@@ -564,7 +564,6 @@
             buttonZone.innerHTML = "";
 
             if (!tierChosenPiece) {
-                // 아직 이 티어의 피스 종류를 안 골랐다면 고르게 함
                 let requiredCount = TIER_COUNTS[currentDraftTier];
                 statusText.innerHTML = `[Tier ${currentDraftTier}] Choose 1 piece type for this tier (Total ${requiredCount} needed).`;
                 
@@ -576,7 +575,6 @@
                     buttonZone.appendChild(btn);
                 });
             } else {
-                // 이미 골랐다면 보드에 1개 배치할 차례
                 let requiredCount = TIER_COUNTS[currentDraftTier];
                 statusText.innerHTML = `[Tier ${currentDraftTier}] Place ${tierChosenPiece.emoji} ${tierChosenPiece.name} (${currentTierPlacedCount + 1}/${requiredCount}) on Rows 6-7.`;
                 highlightDraftZone(true);
@@ -643,7 +641,9 @@
                     }
                 }
 
-                let finishedAll = (currentDraftTier === 1 && tierFinished && currentTierPlacedCount === 0 && !tierChosenPiece);
+                // 정확히 티어 1까지 전부 끝나고, 플레이어가 총 16개의 피스를 모두 배치했을 때만 완료되도록 수정
+                let playerTotalPlaced = countPlayerPieces();
+                let finishedAll = (currentDraftTier === 1 && tierFinished && playerTotalPlaced >= 16);
 
                 if (gameMode === "PVC") {
                     if (finishedAll) {
@@ -653,7 +653,6 @@
                         recordBoardState();
                     } else {
                         if (tierFinished) {
-                            // AI도 다음 티어로 넘어가며 피스 선택 필요
                             aiChooseTierPiece();
                         }
                         aiPerformDraftTurn(tierFinished);
@@ -753,6 +752,16 @@
         }
     }
 
+    function countPlayerPieces() {
+        let count = 0;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (boardState[r][c] && boardState[r][c].side === 'player') count++;
+            }
+        }
+        return count;
+    }
+
     let aiTierChosenPiece = null;
     let aiTierPlacedCount = 0;
 
@@ -787,14 +796,12 @@
         if (aiTierFinished) {
             aiTierChosenPiece = null;
             aiTierPlacedCount = 0;
-            if (currentDraftTier > 1 && playerTierFinished) {
-                // 양쪽 다 티어가 끝났을 때만 내려감 (싱크 맞춤용)
-            }
         }
 
-        let finishedAll = (currentDraftTier === 1 && aiTierFinished && !checkAnyEmptyEnemySpot());
+        let enemyTotalPlaced = countEnemyPieces();
+        let finishedAll = (currentDraftTier === 1 && aiTierFinished && enemyTotalPlaced >= 16);
 
-        if (finishedAll || (currentDraftTier === 1 && aiTierFinished && !tierChosenPiece)) {
+        if (finishedAll) {
             gameState = "GAMEPLAY";
             turn = "player";
             statusText.innerHTML = "⚔️ Battle Start! Click a piece to move.";
@@ -805,13 +812,14 @@
         }
     }
 
-    function checkAnyEmptyEnemySpot() {
-        for (let r = 0; r <= 1; r++) {
+    function countEnemyPieces() {
+        let count = 0;
+        for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
-                if (!boardState[r][c]) return true;
+                if (boardState[r][c] && boardState[r][c].side === 'enemy') count++;
             }
         }
-        return false;
+        return count;
     }
 
     function clearHighlights() {
