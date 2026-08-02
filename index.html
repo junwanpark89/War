@@ -275,12 +275,12 @@
         statusText.innerHTML = "🔍 Looking for opponent...";
         buttonZone.innerHTML = "";
 
-        // Render PeerJS 백엔드 서버 연결 설정
+        // Render 서버 주소 직접 지정을 통해 올바른 WebSockets 백엔드로 접속
         const peerConfig = {
-            host: window.location.hostname,
-            port: window.location.protocol === 'https:' ? 443 : (window.location.port || 80),
+            host: 'cosmageddon-server.onrender.com',
+            port: 443,
             path: '/peerjs',
-            secure: window.location.protocol === 'https:'
+            secure: true
         };
 
         peer = new Peer(peerConfig);
