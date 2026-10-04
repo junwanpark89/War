@@ -197,7 +197,7 @@
     let boardState = Array(8).fill(null).map(() => Array(8).fill(null));
     let selectedCell = null, validMoves = [], boardHistory = [];
 
-    // --- How to Play 메뉴 관련 함수들 ---
+    // --- How to Play Menu Functions (English Only) ---
     function showMainMenu() {
         document.getElementById('main-menu').innerHTML = `
             <h1>Cosmageddon</h1>
@@ -212,22 +212,22 @@
     function showHowToPlayMenu() {
         document.getElementById('main-menu').innerHTML = `
             <h1>📖 How to Play</h1>
-            <button class="menu-btn btn-custom" onclick="showWinningConditions()">🏆 이기는 조건 (Winning Conditions)</button>
-            <button class="menu-btn btn-pvp" onclick="showFactionGuidesMenu()">🛡️ Faction별 기물 이동 설명 (Factions)</button>
+            <button class="menu-btn btn-custom" onclick="showWinningConditions()">🏆 Winning Conditions</button>
+            <button class="menu-btn btn-pvp" onclick="showFactionGuidesMenu()">🛡️ Factions Guide</button>
             <button class="menu-btn" style="background-color: #57606f; margin-top: 10px;" onclick="showMainMenu()">Back</button>
         `;
     }
 
     function showWinningConditions() {
         document.getElementById('main-menu').innerHTML = `
-            <h1>🏆 이기는 조건</h1>
+            <h1>🏆 Winning Conditions</h1>
             <div class="info-box">
-                <h3>1. 상대 기물 전멸 (Elimination)</h3>
-                <p>보드에 배치된 상대방의 모든 기물을 잡아서 제거하면 승리합니다.</p>
-                <h3>2. 시간 초과 승리 (Timeout)</h3>
-                <p>제한 시간 내에 기물을 선택하거나 이동하지 못해 상대방의 시간이 초과되면 승리합니다.</p>
-                <h3>3. 동형반복 규칙 (Threefold Repetition)</h3>
-                <p>동일한 보드 상태가 3번 반복될 경우, 규칙에 따라 반복을 유발한 상대방이 패배합니다.</p>
+                <h3>1. Elimination</h3>
+                <p>Eliminate all opponent pieces on the board to win.</p>
+                <h3>2. Timeout Victory</h3>
+                <p>Win if the opponent runs out of time while failing to choose or move a piece within the limit.</p>
+                <h3>3. Threefold Repetition</h3>
+                <p>If the exact same board state repeats 3 times, the player who triggered the repetition loses according to the rules.</p>
             </div>
             <button class="menu-btn" style="background-color: #57606f; margin-top: 10px;" onclick="showHowToPlayMenu()">Back</button>
         `;
@@ -236,16 +236,16 @@
     function showFactionGuidesMenu() {
         document.getElementById('main-menu').innerHTML = `
             <h1>🛡️ Faction Select</h1>
-            <button class="menu-btn btn-pvc" onclick="showFactionPieces('Dragon')">🐲 Dragon (드래곤)</button>
-            <button class="menu-btn btn-pvp" onclick="showFactionPieces('Elf')">🧝 Elf (엘프)</button>
-            <button class="menu-btn btn-custom" onclick="showFactionPieces('Human')">💂 Human (휴먼)</button>
+            <button class="menu-btn btn-pvc" onclick="showFactionPieces('Dragon')">🐲 Dragon</button>
+            <button class="menu-btn btn-pvp" onclick="showFactionPieces('Elf')">🧝 Elf</button>
+            <button class="menu-btn btn-custom" onclick="showFactionPieces('Human')">💂 Human</button>
             <button class="menu-btn" style="background-color: #57606f; margin-top: 10px;" onclick="showHowToPlayMenu()">Back</button>
         `;
     }
 
     function showFactionPieces(faction) {
         let piecesData = PIECE_DATABASE[faction];
-        let html = `<h1>🛡️ ${faction} 기물 설명</h1>`;
+        let html = `<h1>🛡️ ${faction} Pieces Guide</h1>`;
         html += `<div class="info-box" style="max-height: 42vh;">`;
         
         TIER_ORDER.forEach(tier => {
@@ -264,47 +264,47 @@
 
     function getMovementDescription(pattern) {
         if (pattern >= 1 && pattern <= 3) {
-            return pattern === 1 ? "상하좌우 1칸 이동" : pattern === 2 ? "대각선 1칸 이동" : "모든 방향 1칸 이동";
+            return pattern === 1 ? "Orthogonal 1 square" : pattern === 2 ? "Diagonal 1 square" : "Any direction 1 square";
         } else if (pattern >= 4 && pattern <= 6) {
-            return pattern === 4 ? "상하좌우 최대 2칸 이동" : pattern === 5 ? "대각선 최대 2칸 이동" : "모든 방향 최대 2칸 이동";
+            return pattern === 4 ? "Orthogonal up to 2 squares" : pattern === 5 ? "Diagonal up to 2 squares" : "Any direction up to 2 squares";
         } else if (pattern >= 7 && pattern <= 9) {
-            return pattern === 7 ? "상하좌우 최대 3칸 이동" : pattern === 8 ? "대각선 최대 3칸 이동" : "모든 방향 최대 3칸 이동";
+            return pattern === 7 ? "Orthogonal up to 3 squares" : pattern === 8 ? "Diagonal up to 3 squares" : "Any direction up to 3 squares";
         } else if (pattern >= 10 && pattern <= 12) {
-            return pattern === 10 ? "상하좌우 최대 4칸 + 나이트(L자)" : pattern === 11 ? "대각선 최대 4칸 + 나이트(L자)" : "모든 방향 최대 4칸 + 나이트(L자)";
+            return pattern === 10 ? "Orthogonal up to 4 squares + Knight move" : pattern === 11 ? "Diagonal up to 4 squares + Knight move" : "Any direction up to 4 squares + Knight move";
         } else if (pattern >= 13 && pattern <= 15) {
-            return pattern === 13 ? "상하좌우 최대 6칸 + 나이트(L자)" : pattern === 14 ? "대각선 최대 6칸 이동" : "모든 방향 최대 5~6칸 + 나이트(L자)";
+            return pattern === 13 ? "Orthogonal up to 6 squares + Knight move" : pattern === 14 ? "Diagonal up to 6 squares" : "Any direction 5-6 squares + Knight move";
         } else if (pattern >= 16 && pattern <= 18) {
-            return pattern === 16 ? "모든 방향 최대 8칸 (궁극)" : pattern === 17 ? "모든 방향 최대 8칸 + 나이트(L자)" : "모든 방향 최대 8칸 + 나이트 + 특수 코너";
+            return pattern === 16 ? "Any direction up to 8 squares (Ultimate)" : pattern === 17 ? "Any direction up to 8 squares + Knight move" : "Any direction up to 8 squares + Knight + Special corner";
         }
         // Elf
         if (pattern >= 19 && pattern <= 21) {
-            return pattern === 19 ? "대각선 1칸 이동" : pattern === 20 ? "상하좌우 1칸 이동" : "모든 방향 1칸 이동";
+            return pattern === 19 ? "Diagonal 1 square" : pattern === 20 ? "Orthogonal 1 square" : "Any direction 1 square";
         } else if (pattern >= 22 && pattern <= 24) {
-            return pattern === 22 ? "상하좌우 최대 2칸 + 측면 특수" : pattern === 23 ? "대각선 최대 2칸 + 전후 특수" : "상하좌우 최대 2칸 이동";
+            return pattern === 22 ? "Orthogonal up to 2 squares + Side special" : pattern === 23 ? "Diagonal up to 2 squares + Front/Back special" : "Orthogonal up to 2 squares";
         } else if (pattern >= 25 && pattern <= 27) {
-            return pattern === 25 ? "대각선 최대 3칸 이동" : pattern === 26 ? "대각선 최대 3칸 (정교)" : "모든 방향 최대 2칸 + 나이트(L자)";
+            return pattern === 25 ? "Diagonal up to 3 squares" : pattern === 26 ? "Diagonal up to 3 squares (Precise)" : "Any direction up to 2 squares + Knight move";
         } else if (pattern >= 28 && pattern <= 30) {
-            return pattern === 28 ? "대각선 최대 4칸 이동" : pattern === 29 ? "상하좌우 최대 4칸 이동" : "모든 방향 최대 4칸 + 나이트(L자)";
+            return pattern === 28 ? "Diagonal up to 4 squares" : pattern === 29 ? "Orthogonal up to 4 squares" : "Any direction up to 4 squares + Knight move";
         } else if (pattern >= 31 && pattern <= 33) {
-            return pattern === 31 ? "대각선 최대 6칸 이동" : pattern === 32 ? "상하좌우 최대 6칸 이동" : "모든 방향 최대 5칸 + 나이트(L자)";
+            return pattern === 31 ? "Diagonal up to 6 squares" : pattern === 32 ? "Orthogonal up to 6 squares" : "Any direction up to 5 squares + Knight move";
         } else if (pattern >= 34 && pattern <= 36) {
-            return pattern === 34 ? "모든 방향 최대 8칸 (궁극)" : "모든 방향 최대 8칸 + 나이트(L자)";
+            return pattern === 34 ? "Any direction up to 8 squares (Ultimate)" : "Any direction up to 8 squares + Knight move";
         }
         // Human
         if (pattern >= 37 && pattern <= 39) {
-            return pattern === 37 ? "상하좌우 1칸 이동" : pattern === 38 ? "대각선 1칸 이동" : "모든 방향 1칸 이동";
+            return pattern === 37 ? "Orthogonal 1 square" : pattern === 38 ? "Diagonal 1 square" : "Any direction 1 square";
         } else if (pattern >= 40 && pattern <= 42) {
-            return pattern === 40 ? "대각선 최대 2칸 이동" : pattern === 41 ? "상하좌우 최대 2칸 이동" : "모든 방향 최대 2칸 이동";
+            return pattern === 40 ? "Diagonal up to 2 squares" : pattern === 41 ? "Orthogonal up to 2 squares" : "Any direction up to 2 squares";
         } else if (pattern >= 43 && pattern <= 45) {
-            return pattern === 43 ? "대각선 최대 3칸 이동" : pattern === 44 ? "상하좌우 최대 3칸 이동" : "상하좌우 최대 3칸 (돌격)";
+            return pattern === 43 ? "Diagonal up to 3 squares" : pattern === 44 ? "Orthogonal up to 3 squares" : "Orthogonal up to 3 squares (Charge)";
         } else if (pattern >= 46 && pattern <= 48) {
-            return pattern === 46 ? "대각선 최대 4칸 이동" : pattern === 47 ? "상하좌우 최대 4칸 이동" : "모든 방향 최대 3칸 + 나이트(L자)";
+            return pattern === 46 ? "Diagonal up to 4 squares" : pattern === 47 ? "Orthogonal up to 4 squares" : "Any direction up to 3 squares + Knight move";
         } else if (pattern >= 49 && pattern <= 51) {
-            return pattern === 49 ? "상하좌우 최대 4칸 + 나이트(L자)" : pattern === 50 ? "대각선 최대 6칸 + 나이트(L자)" : "상하좌우 최대 6칸 (포격)";
+            return pattern === 49 ? "Orthogonal up to 4 squares + Knight move" : pattern === 50 ? "Diagonal up to 6 squares + Knight move" : "Orthogonal up to 6 squares (Bombardment)";
         } else if (pattern >= 52 && pattern <= 54) {
-            return pattern === 52 ? "모든 방향 최대 8칸 + 나이트 (황제)" : "모든 방향 최대 8칸 + 나이트(L자)";
+            return pattern === 52 ? "Any direction up to 8 squares + Knight (Emperor)" : "Any direction up to 8 squares + Knight move";
         }
-        return "기본 이동 규칙";
+        return "Basic movement rules";
     }
     // ------------------------------------
 
@@ -320,7 +320,7 @@
     }
     function updateTimerDisplay() {
         if (gameMode !== "PVP" || gameState === "GAMEOVER" || myRole === 'spectator') return;
-        statusText.innerHTML = statusText.innerHTML.replace(/ ⏱️ \d+s$/, '') + ` ⏱️ ${timeLeft}s`;
+        statusText.innerHTML = statusText.innerHTML.replace(/ ⏱️ \d+s$/, '') + ` ⏱️️ ${timeLeft}s`;
     }
 
     function startPVCMode() {
