@@ -35,7 +35,8 @@
         .btn-pvc:hover { background-color: #ff6b81; }
         .btn-custom { background-color: #70a1ff; }
         .btn-custom:hover { background-color: #5352ed; }
-
+        .btn-donate { background-color: #0097e6; margin-top: 15px; }
+.btn-donate:hover { background-color: #00a8ff; }
         #status-panel {
             margin-bottom: 2vh; font-size: clamp(13px, 2vmin, 16px);
             background: #1e222b; padding: 1.2vh 2vw; border-radius: 10px;
@@ -105,6 +106,7 @@
     <button class="menu-btn btn-pvc" onclick="startPVCMode()">🤖 Player vs Computer</button>
     <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Quick Match PVP</button>
     <button class="menu-btn btn-custom" onclick="showCustomMenu()">🔑 Custom Room PVP</button>
+    <button class="menu-btn btn-donate" onclick="window.open('https://www.paypal.com/biz/profile/cosmageddon', '_blank')">☕ Support the Developer (Donate)</button>
 </div>
 
 <div id="game-wrapper" style="display: none;">
