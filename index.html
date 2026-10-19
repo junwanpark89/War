@@ -193,7 +193,7 @@
     let myRaceSelected = false, enemyRaceSelected = false;
     let turnTimer = null, timeLeft = 0;
 
-    // --- Authentication Logic ---
+    // --- Authentication Logic (1-year inactivity auto-deletion applied) ---
     function switchAuthTab(tab) {
         const signinSec = document.getElementById('signin-section');
         const signupSec = document.getElementById('signup-section');
@@ -223,12 +223,25 @@
         }
 
         let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
+        const oneYearMs = 365 * 24 * 60 * 60 * 1000; // 1년 (밀리초)
+        const now = Date.now();
+
         if (users[user]) {
-            alert("Username already exists! Please choose another or sign in.");
-            return;
+            let userData = users[user];
+            let lastLogin = (typeof userData === 'object' && userData.lastLogin) ? userData.lastLogin : 0;
+
+            // 만약 기존 아이디가 존재하지만 마지막 로그인으로부터 1년이 지났다면 만료된 것으로 보고 삭제 후 가입 허용
+            if (lastLogin && (now - lastLogin < oneYearMs)) {
+                alert("Username already exists and is active! Please choose another or sign in.");
+                return;
+            } else {
+                // 1년 이상 로그인 안 한 휴면 계정이므로 기존 데이터 삭제 후 새로 가입 진행
+                delete users[user];
+            }
         }
 
-        users[user] = pass;
+        // 새 계정 등록 (비밀번호와 마지막 로그인 시간 저장)
+        users[user] = { pass: pass, lastLogin: now };
         localStorage.setItem('cosmageddon_users', JSON.stringify(users));
         alert("Account created successfully! Please sign in.");
         switchAuthTab('signin');
@@ -247,10 +260,35 @@
         }
 
         let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
-        if (!users[user] || users[user] !== pass) {
+        if (!users[user]) {
             alert("Invalid username or password!");
             return;
         }
+
+        let userData = users[user];
+        // 구버전 데이터(단순 문자열 비밀번호) 호환 처리
+        let storedPass = (typeof userData === 'object') ? userData.pass : userData;
+        let lastLogin = (typeof userData === 'object' && userData.lastLogin) ? userData.lastLogin : 0;
+
+        if (storedPass !== pass) {
+            alert("Invalid username or password!");
+            return;
+        }
+
+        const oneYearMs = 365 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+
+        // 로그인 시점에 1년 이상 경과했는지 확인
+        if (lastLogin && (now - lastLogin > oneYearMs)) {
+            delete users[user];
+            localStorage.setItem('cosmageddon_users', JSON.stringify(users));
+            alert("This account has been deleted due to 1 year of inactivity.");
+            return;
+        }
+
+        // 로그인 성공 시각 갱신 (활동 기록 갱신)
+        users[user] = { pass: pass, lastLogin: now };
+        localStorage.setItem('cosmageddon_users', JSON.stringify(users));
 
         // Login Success
         localStorage.setItem('cosmageddon_logged_in', user);
@@ -270,8 +308,24 @@
     window.addEventListener('DOMContentLoaded', () => {
         const loggedInUser = localStorage.getItem('cosmageddon_logged_in');
         if (loggedInUser) {
-            document.getElementById('auth-wrapper').style.display = 'none';
-            document.getElementById('main-menu').style.display = 'flex';
+            let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
+            if (users[loggedInUser]) {
+                // 자동 로그인 시에도 1년 경과 체크 수행
+                const oneYearMs = 365 * 24 * 60 * 60 * 1000;
+                let userData = users[loggedInUser];
+                let lastLogin = (typeof userData === 'object' && userData.lastLogin) ? userData.lastLogin : 0;
+
+                if (lastLogin && (Date.now() - lastLogin > oneYearMs)) {
+                    localStorage.removeItem('cosmageddon_logged_in');
+                    delete users[loggedInUser];
+                    localStorage.setItem('cosmageddon_users', JSON.stringify(users));
+                    alert("Your session has expired because the account was inactive for 1 year.");
+                    return;
+                }
+
+                document.getElementById('auth-wrapper').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'flex';
+            }
         }
     });
     // ----------------------------
