@@ -17,8 +17,31 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             padding: 2vh 2vw; overflow: auto; touch-action: manipulation;
         }
-        #main-menu {
+        
+        /* Auth Wrapper Styles */
+        #auth-wrapper {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #1e222b; padding: 30px 25px; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center;
+            max-width: 90vw; width: 340px; box-sizing: border-box;
+        }
+        #auth-wrapper h1 { margin-top: 0; margin-bottom: 15px; font-size: 24px; color: #ffffff; }
+        .auth-tabs {
+            display: flex; width: 100%; margin-bottom: 15px; background: #2f3542;
+            border-radius: 6px; overflow: hidden;
+        }
+        .auth-tab {
+            flex: 1; padding: 10px; background: transparent; border: none;
+            color: #a4b0be; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s;
+        }
+        .auth-tab.active { background: #70a1ff; color: white; }
+        .auth-input {
+            width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px;
+            border: none; box-sizing: border-box; background: #2f3542; color: white; font-size: 14px;
+        }
+
+        #main-menu {
+            display: none; flex-direction: column; align-items: center; justify-content: center;
             background: #1e222b; padding: 30px 25px; border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center;
             max-width: 90vw; width: 340px; box-sizing: border-box;
@@ -39,6 +62,8 @@
         .btn-custom:hover { background-color: #5352ed; }
         .btn-donate { background-color: #0097e6; margin-top: 15px; }
         .btn-donate:hover { background-color: #00a8ff; }
+        .btn-logout { background-color: #57606f; margin-top: 15px; }
+        .btn-logout:hover { background-color: #2f3542; }
 
         .info-box {
             background: #2f3542; padding: 12px; border-radius: 8px;
@@ -111,6 +136,30 @@
 </head>
 <body>
 
+<!-- Login / Signup Authentication Page -->
+<div id="auth-wrapper">
+    <h1>Cosmageddon</h1>
+    <div class="auth-tabs">
+        <button id="tab-signin-btn" class="auth-tab active" onclick="switchAuthTab('signin')">Sign In</button>
+        <button id="tab-signup-btn" class="auth-tab" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+
+    <!-- Sign In Form -->
+    <div id="signin-section" style="width: 100%;">
+        <input type="text" id="signin-user" class="auth-input" placeholder="Username">
+        <input type="password" id="signin-pass" class="auth-input" placeholder="Password">
+        <button class="menu-btn btn-pvp" onclick="handleSignIn()">Sign In</button>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="signup-section" style="width: 100%; display: none;">
+        <input type="text" id="signup-user" class="auth-input" placeholder="Choose Username">
+        <input type="password" id="signup-pass" class="auth-input" placeholder="Choose Password">
+        <button class="menu-btn btn-pvc" onclick="handleSignUp()">Create Account</button>
+    </div>
+</div>
+
+<!-- Original Main Menu (Hidden initially until login) -->
 <div id="main-menu">
     <h1>Cosmageddon</h1>
     <button class="menu-btn btn-how" onclick="showHowToPlayMenu()">📖 How to Play</button>
@@ -118,6 +167,7 @@
     <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Quick Match PVP</button>
     <button class="menu-btn btn-custom" onclick="showCustomMenu()">🔑 Custom Room PVP</button>
     <button class="menu-btn btn-donate" onclick="window.open('https://www.paypal.com/ncp/payment/8T24ZSJDX4FCY', '_blank')">☕ Support the Developer (Donate)</button>
+    <button class="menu-btn btn-logout" onclick="handleLogout()">🚪 Log Out</button>
 </div>
 
 <div id="game-wrapper" style="display: none;">
@@ -142,6 +192,89 @@
     
     let myRaceSelected = false, enemyRaceSelected = false;
     let turnTimer = null, timeLeft = 0;
+
+    // --- Authentication Logic ---
+    function switchAuthTab(tab) {
+        const signinSec = document.getElementById('signin-section');
+        const signupSec = document.getElementById('signup-section');
+        const signinBtn = document.getElementById('tab-signin-btn');
+        const signupBtn = document.getElementById('tab-signup-btn');
+
+        if (tab === 'signin') {
+            signinSec.style.display = 'block';
+            signupSec.style.display = 'none';
+            signinBtn.classList.add('active');
+            signupBtn.classList.remove('active');
+        } else {
+            signinSec.style.display = 'none';
+            signupSec.style.display = 'block';
+            signupBtn.classList.add('active');
+            signinBtn.classList.remove('active');
+        }
+    }
+
+    function handleSignUp() {
+        const user = document.getElementById('signup-user').value.trim();
+        const pass = document.getElementById('signup-pass').value.trim();
+
+        if (!user || !pass) {
+            alert("Please enter both username and password!");
+            return;
+        }
+
+        let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
+        if (users[user]) {
+            alert("Username already exists! Please choose another or sign in.");
+            return;
+        }
+
+        users[user] = pass;
+        localStorage.setItem('cosmageddon_users', JSON.stringify(users));
+        alert("Account created successfully! Please sign in.");
+        switchAuthTab('signin');
+        document.getElementById('signin-user').value = user;
+        document.getElementById('signup-user').value = '';
+        document.getElementById('signup-pass').value = '';
+    }
+
+    function handleSignIn() {
+        const user = document.getElementById('signin-user').value.trim();
+        const pass = document.getElementById('signin-pass').value.trim();
+
+        if (!user || !pass) {
+            alert("Please enter username and password!");
+            return;
+        }
+
+        let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
+        if (!users[user] || users[user] !== pass) {
+            alert("Invalid username or password!");
+            return;
+        }
+
+        // Login Success
+        localStorage.setItem('cosmageddon_logged_in', user);
+        document.getElementById('auth-wrapper').style.display = 'none';
+        document.getElementById('main-menu').style.display = 'flex';
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('cosmageddon_logged_in');
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('auth-wrapper').style.display = 'flex';
+        document.getElementById('signin-user').value = '';
+        document.getElementById('signin-pass').value = '';
+    }
+
+    // Auto-login check on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        const loggedInUser = localStorage.getItem('cosmageddon_logged_in');
+        if (loggedInUser) {
+            document.getElementById('auth-wrapper').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+        }
+    });
+    // ----------------------------
 
     // 54개의 모든 기물에 고유한 move pattern (1 ~ 54) 부여
     const PIECE_DATABASE = {
@@ -206,6 +339,7 @@
             <button class="menu-btn btn-pvp" onclick="startPVPMode()">⚔️ Quick Match PVP</button>
             <button class="menu-btn btn-custom" onclick="showCustomMenu()">🔑 Custom Room PVP</button>
             <button class="menu-btn btn-donate" onclick="window.open('https://www.paypal.com/ncp/payment/8T24ZSJDX4FCY', '_blank')">☕ Support the Developer (Donate)</button>
+            <button class="menu-btn btn-logout" onclick="handleLogout()">🚪 Log Out</button>
         `;
     }
 
@@ -320,7 +454,7 @@
     }
     function updateTimerDisplay() {
         if (gameMode !== "PVP" || gameState === "GAMEOVER" || myRole === 'spectator') return;
-        statusText.innerHTML = statusText.innerHTML.replace(/ ⏱️ \d+s$/, '') + ` ⏱️️ ${timeLeft}s`;
+        statusText.innerHTML = statusText.innerHTML.replace(/ ⏱️ \d+s$/, '') + ` ⏱ ${timeLeft}s`;
     }
 
     function startPVCMode() {
