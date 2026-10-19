@@ -251,50 +251,51 @@
     }
 
     function handleSignIn() {
-        const user = document.getElementById('signin-user').value.trim();
-        const pass = document.getElementById('signin-pass').value.trim();
+    const user = document.getElementById('signin-user').value.trim();
+    const pass = document.getElementById('signin-pass').value.trim();
 
-        if (!user || !pass) {
-            alert("Please enter username and password!");
-            return;
-        }
-
-        let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
-        if (!users[user]) {
-            alert("Invalid username or password!");
-            return;
-        }
-
-        let userData = users[user];
-        // 구버전 데이터(단순 문자열 비밀번호) 호환 처리
-        let storedPass = (typeof userData === 'object') ? userData.pass : userData;
-        let lastLogin = (typeof userData === 'object' && userData.lastLogin) ? userData.lastLogin : 0;
-
-        if (storedPass !== pass) {
-            alert("Invalid username or password!");
-            return;
-        }
-
-        const oneYearMs = 365 * 24 * 60 * 60 * 1000;
-        const now = Date.now();
-
-        // 로그인 시점에 1년 이상 경과했는지 확인
-        if (lastLogin && (now - lastLogin > oneYearMs)) {
-            delete users[user];
-            localStorage.setItem('cosmageddon_users', JSON.stringify(users));
-            alert("This account has been deleted due to 1 year of inactivity.");
-            return;
-        }
-
-        // 로그인 성공 시각 갱신 (활동 기록 갱신)
-        users[user] = { pass: pass, lastLogin: now };
-        localStorage.setItem('cosmageddon_users', JSON.stringify(users));
-
-        // Login Success
-        localStorage.setItem('cosmageddon_logged_in', user);
-        document.getElementById('auth-wrapper').style.display = 'none';
-        document.getElementById('main-menu').style.display = 'flex';
+    if (!user || !pass) {
+        alert("Please enter username and password!");
+        return;
     }
+
+    let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
+    if (!users[user]) {
+        alert("Invalid username or password!");
+        return;
+    }
+
+    let userData = users[user];
+    let storedPass = (typeof userData === 'object') ? userData.pass : userData;
+    let lastLogin = (typeof userData === 'object' && userData.lastLogin) ? userData.lastLogin : 0;
+    
+    // 💡 [1] 기존 유저의 rating 점수를 가져오는 부분입니다!
+    let rating = (typeof userData === 'object' && userData.rating) ? userData.rating : 1000;
+
+    if (storedPass !== pass) {
+        alert("Invalid username or password!");
+        return;
+    }
+
+    const oneYearMs = 365 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    if (lastLogin && (now - lastLogin > oneYearMs)) {
+        delete users[user];
+        localStorage.setItem('cosmageddon_users', JSON.stringify(users));
+        alert("This account has been deleted due to 1 year of inactivity.");
+        return;
+    }
+
+    // 💡 [2] 로그인 성공 시 lastLogin 시간과 함께 rating 점수를 세트로 저장 및 유지하는 부분입니다!
+    users[user] = { pass: pass, lastLogin: now, rating: rating };
+    localStorage.setItem('cosmageddon_users', JSON.stringify(users));
+
+    // Login Success
+    localStorage.setItem('cosmageddon_logged_in', user);
+    document.getElementById('auth-wrapper').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'flex';
+}
 
     function handleLogout() {
         localStorage.removeItem('cosmageddon_logged_in');
@@ -696,24 +697,35 @@
     }
 
     function requestMatchmaking(myPeerId) {
-        fetch(`https://cosmageddon-server.onrender.com/match?id=${myPeerId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === "matched") {
-                    if (pollTimer) clearInterval(pollTimer);
-                    if (data.isHost) {
-                        isHost = true; myRole = 'host';
-                        statusText.innerHTML = "Opponent found! Waiting for connection...";
-                    } else {
-                        isHost = false; myRole = 'guest';
-                        statusText.innerHTML = "Opponent found! Connecting...";
-                        conn = peer.connect(data.opponentId);
-                        guestConn = conn;
-                        conn.on('open', setupConnection);
-                    }
-                } else { if (!pollTimer) pollTimer = setInterval(() => requestMatchmaking(myPeerId), 1000); }
-            }).catch(() => { /* skip */ });
+    // 💡 [추가된 부분] 현재 로그인된 유저의 레이팅(점수)을 localStorage에서 가져옵니다 (없으면 기본 1000점)
+    const loggedInUser = localStorage.getItem('cosmageddon_logged_in');
+    let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
+    let myRating = 1000;
+    if (loggedInUser && users[loggedInUser] && users[loggedInUser].rating) {
+        myRating = users[loggedInUser].rating;
     }
+
+    // 💡 [수정된 부분] fetch 주소 뒤에 &rating=${myRating}을 붙여서 서버로 내 점수를 함께 전송합니다.
+    fetch(`https://cosmageddon-server.onrender.com/match?id=${myPeerId}&rating=${myRating}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "matched") {
+                if (pollTimer) clearInterval(pollTimer);
+                if (data.isHost) {
+                    isHost = true; myRole = 'host';
+                    statusText.innerHTML = "Opponent found! Waiting for connection...";
+                } else {
+                    isHost = false; myRole = 'guest';
+                    statusText.innerHTML = "Opponent found! Connecting...";
+                    conn = peer.connect(data.opponentId);
+                    guestConn = conn;
+                    conn.on('open', setupConnection);
+                }
+            } else { 
+                if (!pollTimer) pollTimer = setInterval(() => requestMatchmaking(myPeerId), 1000); 
+            }
+        }).catch(() => { /* skip */ });
+}
 
     function handleOpponentDisconnect() {
         if (pollTimer) clearInterval(pollTimer); clearTurnTimer();
@@ -1350,13 +1362,45 @@
         if (!enemyAlive) { endGame("You win!"); return true; }
         return false;
     }
+// 💡 1. 여기에 updateRating 함수를 통째로 넣어주세요 (endGame 바로 위)
+    function updateRating(isWin) {
+        const loggedInUser = localStorage.getItem('cosmageddon_logged_in');
+        if (!loggedInUser) return; // 로그인 안 되어 있으면 무시
 
-    function endGame(message) {
-        clearTurnTimer();
-        statusText.innerHTML = `🏆 <b>${message}</b>`;
-        buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Main Menu</button>`;
-        gameState = "GAMEOVER";
+        let users = JSON.parse(localStorage.getItem('cosmageddon_users') || '{}');
+        if (users[loggedInUser]) {
+            let currentRating = users[loggedInUser].rating || 1000;
+            
+            if (isWin) {
+                currentRating += 16; // 승리 시 점수 획득
+            } else {
+                currentRating = Math.max(100, currentRating - 16); // 패배 시 점수 차감 (최소 100점)
+            }
+
+            users[loggedInUser].rating = currentRating;
+            localStorage.setItem('cosmageddon_users', JSON.stringify(users));
+        }
     }
+    function endGame(message) {
+    clearTurnTimer();
+    
+    // 💡 [추가된 부분] 관전자가 아니고 로그인된 상태라면 메시지를 분석해 승패에 따라 점수 반영
+    if (myRole !== 'spectator') {
+        const lowerMsg = message.toLowerCase();
+        // 내가 이긴 경우 ("You win", "You won" 포함)
+        if (lowerMsg.includes('you win') || lowerMsg.includes('you won')) {
+            updateRating(true);
+        } 
+        // 내가 진 경우 ("Defeat", 상대방이 "wins!" 한 경우)
+        else if (lowerMsg.includes('defeat') || lowerMsg.includes('wins!')) {
+            updateRating(false);
+        }
+    }
+
+    statusText.innerHTML = `🏆 <b>${message}</b>`;
+    buttonZone.innerHTML = `<button class="choice-btn" onclick="location.reload()">Main Menu</button>`;
+    gameState = "GAMEOVER";
+}
 
     function renderPieces() {
         document.querySelectorAll('.piece').forEach(p => p.remove());
